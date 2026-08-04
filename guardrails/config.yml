@@ -1,0 +1,26 @@
+rails:
+  input:
+    flows:
+      - mask sensitive data on input
+      - self check input
+  output:
+    flows:
+      - mask sensitive data on output
+      - self check output
+  config:
+    sensitive_data_detection:
+      input:
+        entities:
+          - EMAIL_ADDRESS
+          - PHONE_NUMBER
+          - CREDIT_CARD
+          - US_SSN
+          - IP_ADDRESS
+      output:
+        entities:
+          - EMAIL_ADDRESS
+          - PHONE_NUMBER
+          - CREDIT_CARD
+          - US_SSN
+          - IP_ADDRESS
+        mask_token: "*"

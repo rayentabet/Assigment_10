@@ -1,0 +1,22 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.DS_Store
+
+# Generated artifacts (keep directory placeholders)
+generated/code/*
+!generated/code/.gitkeep
+!generated/code/obstacle_avoiding_robot.ino
+generated/robots/*
+!generated/robots/.gitkeep
+!generated/robots/obstacle_avoiding_robot/
+!generated/robots/obstacle_avoiding_robot/model.scad
+!generated/robots/obstacle_avoiding_robot/preview.png
+
+# Evaluation output
+evaluation/results.csv
+evaluation/runs/

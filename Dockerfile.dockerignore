@@ -1,0 +1,16 @@
+**/.env
+**/.env.*
+!**/.env.example
+**/.git
+**/.DS_Store
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+**/.pytest_cache
+**/.ruff_cache
+Assignment_8/qdrant_snapshot
+Assignment_8/qdrant_storage
+Assignment_10/evaluation/runs
+Assignment_10/generated

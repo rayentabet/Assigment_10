@@ -1,0 +1,21 @@
+services:
+  mcp-server:
+    build:
+      context: ..
+      dockerfile: Assignment_10/Dockerfile
+    image: arduino-rag-mcp:local
+    container_name: arduino-rag-mcp
+    env_file:
+      - ../Assignment_8/.env
+      - .env
+    environment:
+      RAG_PATH: /app/assignment_8
+      QDRANT_URL: http://host.docker.internal:6333
+      MCP_TRANSPORT: http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
