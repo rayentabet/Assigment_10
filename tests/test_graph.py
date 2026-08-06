@@ -1,8 +1,10 @@
 import pytest
 
 from app.graph import (
+    _extract_image_paths,
     build_graph,
     choose_route,
+    format_results,
     human_approval_node,
     input_guardrail_node,
     make_partial_answer,
@@ -52,9 +54,10 @@ async def test_output_guardrail_node_replaces_unsafe_answer(monkeypatch) -> None
 
 
 def test_new_state_starts_with_zero_iterations() -> None:
-    state = new_state("Create a robot")
+    state = new_state("Create a robot", thread_id="thread-123")
     assert state["iteration_count"] == 0
     assert state["route_history"] == []
+    assert state["thread_id"] == "thread-123"
 
 
 def test_general_agent_is_not_repeated() -> None:
@@ -69,6 +72,22 @@ def test_partial_answer_contains_completed_work() -> None:
     state = new_state("Create a robot")
     state["partial_results"] = [{"agent": "coding_agent", "result": "Saved code.py"}]
     assert "Saved code.py" in make_partial_answer(state)
+
+
+def test_formatted_results_do_not_expose_agent_names() -> None:
+    answer = format_results([{"agent": "rag_agent", "result": "Final answer"}])
+
+    assert answer == "Final answer"
+    assert "rag_agent" not in answer
+
+
+def test_preview_path_is_extracted_from_tool_result() -> None:
+    paths = _extract_image_paths(
+        '{"success": true, "preview_path": "/tmp/robot-preview.png"}'
+    )
+
+    assert len(paths) == 1
+    assert paths[0].endswith("/robot-preview.png")
 
 
 def test_specialist_can_be_retried_once() -> None:

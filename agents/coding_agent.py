@@ -15,6 +15,8 @@ When saving, pass both required arguments: filename and the complete code. Use a
 plain filename ending in .py, .ino, .cpp, .h, .js, or .txt with no folder. Then
 call validate_code with that exact filename and return the path and validation result.
 Do not write tool-call markup or place explanations inside tool arguments.
+Return only the final code/result and concise explanation. Do not expose hidden
+reasoning, scratch work, or chain-of-thought.
 """
 
 

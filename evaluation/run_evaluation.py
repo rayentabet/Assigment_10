@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from app.config import settings
-from app.guardrails import BLOCKED_MESSAGE, check_output, run_guarded
+from app.chat_service import send_message
+from app.guardrails import BLOCKED_MESSAGE, check_output
 
 HERE = Path(__file__).parent
 QUERIES_FILE = HERE / "queries.json"
@@ -87,7 +88,7 @@ async def evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
         tool_trace = []
         image_paths = []
     else:
-        result = await run_guarded(case["query"])
+        result = await send_message(case["query"])
         answer = result["final_answer"]
         raw_answer = result.get("raw_answer", answer)
         actual_routes = result["route_history"]

@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     qdrant_collection: str = "arduino_rag"
     mcp_server_url: str = "http://127.0.0.1:8001/mcp"
     mcp_auth_token: str = ""
+    chat_database_path: Path = Path("data/chat_history.sqlite")
 
 
 settings = Settings()

@@ -14,6 +14,7 @@ services:
       MCP_TRANSPORT: http
       MCP_HOST: 0.0.0.0
       MCP_PORT: 8000
+      HF_HUB_DISABLE_XET: "1"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

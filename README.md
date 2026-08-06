@@ -157,6 +157,62 @@ Run the multi-agent CLI only after the container is ready:
 PYTHONPATH=. .venv/bin/python -m app.cli
 ```
 
+## FastAPI chat service
+
+FastAPI is the main application interface. Start it after the MCP server is ready:
+
+```bash
+PYTHONPATH=. .venv/bin/uvicorn app.api.main:app --reload --port 8000
+```
+
+Interactive API documentation is available at `http://127.0.0.1:8000/docs`.
+Create a thread, then send messages using its returned ID:
+
+Conversation checkpoints are persisted in `data/chat_history.sqlite` by default,
+so thread state and paused approval requests survive API restarts. Override the
+location with `CHAT_DATABASE_PATH` in `.env`.
+
+```bash
+curl -X POST http://127.0.0.1:8000/threads
+
+curl -X POST http://127.0.0.1:8000/threads/THREAD_ID/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"Explain how an ultrasonic sensor works"}'
+```
+
+Retrieve the public user/assistant history for that thread:
+
+```bash
+curl http://127.0.0.1:8000/threads/THREAD_ID/messages
+```
+
+Delete the thread, its public history, artifacts, and LangGraph checkpoints:
+
+```bash
+curl -X DELETE http://127.0.0.1:8000/threads/THREAD_ID
+```
+
+If the response status is `approval_required`, continue the same checkpoint:
+
+```bash
+curl -X POST http://127.0.0.1:8000/threads/THREAD_ID/resume \
+  -H 'Content-Type: application/json' \
+  -d '{"approved":true}'
+```
+
+## Streamlit chat frontend
+
+Keep FastAPI running, then start the frontend in a second terminal:
+
+```bash
+PYTHONPATH=. .venv/bin/streamlit run frontend/streamlit_app.py
+```
+
+The UI creates and retains a thread ID, reloads SQLite-backed history, sends chat
+messages through FastAPI, and displays approval controls for paused coding or
+visualization actions. Set `API_BASE_URL` in `.env` if FastAPI is not running at
+`http://127.0.0.1:8000`.
+
 Stop the MCP service without affecting the separately running Qdrant container:
 
 ```bash

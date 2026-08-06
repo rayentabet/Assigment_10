@@ -1,5 +1,7 @@
 """LangGraph supervisor and specialist workflow."""
 
+import ast
+import json
 from collections.abc import Awaitable, Callable
 from functools import partial
 from pathlib import Path
@@ -65,6 +67,7 @@ SUPERVISOR_RESULT_LIMIT = 2_000
 class AgentState(TypedDict):
     """Information shared by all graph nodes."""
 
+    thread_id: str
     messages: Annotated[list, add_messages]
     original_query: str
     next_agent: str
@@ -102,10 +105,11 @@ def validate_route(route: str) -> str:
     return SAFE_FALLBACK_ROUTE
 
 
-def new_state(user_input: str) -> AgentState:
+def new_state(user_input: str, thread_id: str = "") -> AgentState:
     """Create the initial graph state for one request."""
 
     return {
+        "thread_id": thread_id,
         "messages": [HumanMessage(content=user_input)],
         "original_query": user_input,
         "next_agent": "",
@@ -276,6 +280,8 @@ async def run_specialist(
                 if not image_path.is_absolute():
                     image_path = settings.rag_project_path / image_path
                 image_paths.append(str(image_path.resolve()))
+        image_paths.extend(_extract_image_paths(getattr(message, "content", None)))
+        image_paths.extend(_extract_image_paths(getattr(message, "artifact", None)))
         if message.type == "tool":
             message_content = message.content
             if isinstance(message_content, list) and any(
@@ -301,15 +307,45 @@ async def run_specialist(
         "route_history": state["route_history"] + [name],
         "partial_results": state["partial_results"] + [partial_result],
         "tool_trace": state["tool_trace"] + tool_trace,
-        "image_paths": state["image_paths"] + image_paths,
+        "image_paths": state["image_paths"] + list(dict.fromkeys(image_paths)),
         "iteration_count": state["iteration_count"] + 1,
     }
 
 
 def format_results(results: list[dict[str, Any]]) -> str:
-    """Turn saved specialist results into readable sections."""
+    """Combine final specialist answers without exposing routing metadata."""
 
-    return "\n\n".join(f"[{item['agent']}]\n{item['result']}" for item in results)
+    return "\n\n".join(item["result"] for item in results)
+
+
+def _extract_image_paths(value: Any) -> list[str]:
+    """Find image and preview paths in structured tool results."""
+
+    if isinstance(value, dict):
+        paths = []
+        for key, item in value.items():
+            if key in {"image_path", "preview_path"} and item:
+                path = Path(str(item))
+                if not path.is_absolute():
+                    path = settings.rag_project_path / path
+                paths.append(str(path.resolve()))
+            else:
+                paths.extend(_extract_image_paths(item))
+        return paths
+    if isinstance(value, list):
+        return [path for item in value for path in _extract_image_paths(item)]
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            try:
+                parsed = ast.literal_eval(value)
+            except (ValueError, SyntaxError):
+                return []
+        if parsed == value:
+            return []
+        return _extract_image_paths(parsed)
+    return []
 
 
 def finalizer_node(state: AgentState) -> dict:

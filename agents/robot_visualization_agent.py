@@ -12,7 +12,9 @@ Use basic cubes, cylinders, spheres, translate, and rotate.
 Add the chassis, wheels, sensors, battery, and controller when requested.
 Use save_openscad to save the .scad file.
 Use render_openscad to create the PNG preview.
-Return the model path, preview path, assumptions, and rendering errors.
+Return a concise final summary and rendering errors, but do not expose hidden
+reasoning, scratch work, chain-of-thought, or local preview paths. The UI receives
+the rendered preview separately.
 """
 
 

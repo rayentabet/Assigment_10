@@ -15,6 +15,8 @@ non-empty image_path, call show_image for that image even if the user did not
 explicitly request it. Do not show irrelevant images or invent image paths.
 Never invent information that is missing from the retrieved documents.
 Keep source names and locations in your answer.
+Return only the grounded final answer and concise supporting facts. Do not expose
+hidden reasoning, scratch work, or chain-of-thought.
 """
 
 

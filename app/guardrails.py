@@ -3,16 +3,12 @@
 import re
 from functools import lru_cache
 from pathlib import Path
-from uuid import uuid4
 
 from langchain_groq import ChatGroq
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.types import Command
 from nemoguardrails import LLMRails, RailsConfig
 from nemoguardrails.rails.llm.options import RailType
 
 from app.config import settings
-from app.graph import build_graph, new_state
 
 GUARDRAILS_CONFIG = Path(__file__).parents[1] / "guardrails"
 BLOCKED_MESSAGE = "I can't help with that request."
@@ -88,36 +84,3 @@ async def check_output(
     if _is_blocked(result):
         return None
     return result.content or answer
-
-
-_CHECKPOINTER = InMemorySaver()
-
-
-async def run_guarded(user_input: str, thread_id: str | None = None) -> dict:
-    """Start a guarded graph run, returning an interrupt when approval is needed."""
-
-    thread_id = thread_id or str(uuid4())
-    graph = build_graph_with_checkpointer()
-    result = await graph.ainvoke(
-        new_state(user_input), config={"configurable": {"thread_id": thread_id}}
-    )
-    result["thread_id"] = thread_id
-    return result
-
-
-async def resume_guarded(thread_id: str, approved: bool) -> dict:
-    """Resume a paused run with the human's approval decision."""
-
-    result = await build_graph_with_checkpointer().ainvoke(
-        Command(resume={"approved": approved}),
-        config={"configurable": {"thread_id": thread_id}},
-    )
-    result["thread_id"] = thread_id
-    return result
-
-
-@lru_cache(maxsize=1)
-def build_graph_with_checkpointer():
-    """Compile once with in-memory persistence for interrupt/resume."""
-
-    return build_graph(checkpointer=_CHECKPOINTER)

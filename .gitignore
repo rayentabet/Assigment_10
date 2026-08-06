@@ -7,6 +7,11 @@ __pycache__/
 .mypy_cache/
 .DS_Store
 
+# Local chat persistence
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+
 # Generated artifacts (keep directory placeholders)
 generated/code/*
 !generated/code/.gitkeep
