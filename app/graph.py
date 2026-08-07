@@ -259,7 +259,7 @@ async def run_specialist(
     )
 
     result = await agent.ainvoke({"messages": [HumanMessage(content=prompt)]})
-    content = result["messages"][-1].content
+    content = _content_to_text(result["messages"][-1].content)
 
     tool_trace = []
     image_paths = []
@@ -301,9 +301,9 @@ async def run_specialist(
                 }
             )
 
-    partial_result = {"agent": name, "result": str(content)}
+    partial_result = {"agent": name, "result": content}
     return {
-        "messages": [AIMessage(content=str(content), name=name)],
+        "messages": [AIMessage(content=content, name=name)],
         "route_history": state["route_history"] + [name],
         "partial_results": state["partial_results"] + [partial_result],
         "tool_trace": state["tool_trace"] + tool_trace,
@@ -316,6 +316,36 @@ def format_results(results: list[dict[str, Any]]) -> str:
     """Combine final specialist answers without exposing routing metadata."""
 
     return "\n\n".join(item["result"] for item in results)
+
+
+def _content_to_text(content: Any) -> str:
+    """Flatten a model reply into plain text.
+
+    Gemini (google-genai) returns content as a list of parts such as
+    ``[{'type': 'text', 'text': '...', 'extras': {...}}]``; stringify that
+    directly instead of trailing the raw structure.
+    """
+
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                if item.get("type") == "text":
+                    text = item.get("text")
+                    if text:
+                        parts.append(str(text))
+                elif item.get("text"):
+                    parts.append(str(item["text"]))
+            else:
+                parts.append(str(item))
+        return "\n\n".join(p for p in parts if p)
+    if content is None:
+        return ""
+    return str(content)
 
 
 def _extract_image_paths(value: Any) -> list[str]:

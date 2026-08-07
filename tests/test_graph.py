@@ -1,6 +1,7 @@
 import pytest
 
 from app.graph import (
+    _content_to_text,
     _extract_image_paths,
     build_graph,
     choose_route,
@@ -79,6 +80,19 @@ def test_formatted_results_do_not_expose_agent_names() -> None:
 
     assert answer == "Final answer"
     assert "rag_agent" not in answer
+
+
+def test_content_parts_are_flattened_to_plain_text() -> None:
+    gemini_content = [
+        {"type": "text", "text": "The answer", "extras": {"signature": "sig-1"}},
+        {"type": "image", "image": "binary"},
+        {"type": "text", "text": "with details", "extras": {"signature": "sig-2"}},
+    ]
+
+    assert _content_to_text(gemini_content) == "The answer\n\nwith details"
+    assert _content_to_text("plain string") == "plain string"
+    assert _content_to_text(None) == ""
+    assert _content_to_text(42) == "42"
 
 
 def test_preview_path_is_extracted_from_tool_result() -> None:
