@@ -4,6 +4,7 @@ from langchain.agents import create_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
+from agents import cached_agent
 from app.config import settings
 
 RAG_PROMPT = """You are the robotics documentation specialist.
@@ -20,6 +21,7 @@ hidden reasoning, scratch work, or chain-of-thought.
 """
 
 
+@cached_agent
 async def create_rag_agent():
     """Create the RAG agent and load its tools through MCP."""
 

@@ -359,3 +359,59 @@ feature list alone.
 ## 13. Conclusion
 
 I built a supervisor-led LangGraph system with four specialists, validated routing, bounded iteration, graph-native input/output guardrails, human approval before side effects, and an MCP-backed RAG agent. I exposed the same FastMCP server to both LangGraph and OpenCode and collected historical evaluation evidence instead of reporting only the best run. The history shows that the largest semantic improvement came from narrowing the routing prompt. The final evaluation achieved 9/10 strict correctness, 90% exact-route accuracy and 100% guardrail accuracy. Its only mismatch was an unnecessary second visualization call, not selection of an incorrect specialist.
+
+## 14. Web API, SQLite persistence, thread IDs and the Streamlit frontend
+
+After the CLI evaluation, I added a browser-usable interface: a FastAPI application that exposes the graph over HTTP, a SQLite database that stores both conversation history and LangGraph checkpoints, opaque thread IDs that tie the two together, and a Streamlit chat frontend.
+
+### HTTP layer
+
+The API lives in `app/api/main.py` and uses the FastAPI lifespan hook to initialize and close the chat service (SQLite connection plus database-backed checkpointer) once per process. Request and response payloads are typed with Pydantic models in `app/api/schemas.py`; the endpoints expose only the finalized answer, thread ID, status and artifact URLs, never raw graph state.
+
+| Endpoint | Behavior |
+|---|---|
+| `GET /health` | Readiness probe |
+| `POST /threads` | Create a conversation and return a new `thread_id` (201) |
+| `GET /threads` | List conversations ordered by recent activity, using the first user message as a title |
+| `DELETE /threads/{thread_id}` | Permanently delete the conversation, its messages, artifacts and graph checkpoints (204/404) |
+| `GET /threads/{thread_id}/messages` | Return ordered public user and assistant messages plus image URLs |
+| `POST /threads/{thread_id}/messages` | Run the agent on the thread; returns a completed or `approval_required` response |
+| `POST /threads/{thread_id}/resume` | Approve or reject the pending human-in-the-loop action |
+| `GET /artifacts/{artifact_id}` | Serve a registered image without exposing its filesystem path |
+
+### Thread IDs
+
+Each conversation gets an opaque UUID stored in `chat_threads`. The same identifier is passed into the LangGraph run as `configurable.thread_id`, so the graph checkpoint and the public history rows of one conversation share a single key. This is what allows a paused approval to be resumed over HTTP with `POST /threads/{id}/resume` and allows history to be reloaded between browser sessions.
+
+### SQLite persistence
+
+`app/chat_service.py` manages one `data/chat_history.sqlite` database (path configurable via `chat_database_path`) with three application tables:
+
+- `chat_threads` — the conversation registry (`thread_id`, timestamps);
+- `chat_messages` — ordered public user and assistant messages per thread;
+- `chat_artifacts` — image artifacts (rendered robot previews, RAG images) mapped to opaque IDs.
+
+The same SQLite file also hosts the LangGraph `AsyncSqliteSaver` checkpointer. This supersedes the note in Section 6 about an in-memory checkpointer: an interrupted run's checkpoint now survives an API restart and can be resumed later, because both the checkpoint and the conversation rows are persisted on disk.
+
+Before an assistant message is persisted, specialist content is flattened to plain text with `_content_to_text` in `app/graph.py`. This closes the issue raised in Section 12: Gemini 3.x replies arrive as a list of content blocks such as `[{'type': 'text', 'text': ..., 'extras': {'signature': ...}}]`, and stringifying that structure used to leak into stored answers. Normalization now happens before the answer is saved, and the raw rows that were persisted before the fix were removed from the database.
+
+Artifacts are registered under `sha256(path)` identifiers, and the serving endpoint validates that the resolved path is an existing image under the configured `generated/` or RAG roots before returning it, so clients cannot use the endpoint to read arbitrary files.
+
+### Streamlit frontend
+
+`frontend/streamlit_app.py` is a chat client against the API: it creates or selects a thread in the sidebar, loads SQLite-backed history through `GET /threads/{id}/messages`, sends messages through `POST /threads/{id}/messages`, renders images served by the artifact endpoint, and shows approve/reject controls whenever the API responds with `status="approval_required"`.
+
+Start the stack after the Docker MCP server is reachable:
+
+```bash
+PYTHONPATH=. .venv/bin/uvicorn app.api.main:app --reload --port 8000
+PYTHONPATH=. .venv/bin/streamlit run frontend/streamlit_app.py
+```
+
+### Cached RAG specialist
+
+The RAG specialist is the only one whose construction performs network I/O: building it connects to the Docker MCP server over Streamable HTTP and discovers its tools. Initially `run_specialist` invoked the factory on every graph step, so every chat message repeated that handshake. I wrapped the factory with the `cached_agent` memoizer in `agents/__init__.py`, so the agent is created once per process and reused for all subsequent messages. Only successful creations are cached, which means a transient MCP outage delays the next call instead of permanently failing it, and the creation lock guarantees that concurrent first requests build a single instance. The other specialist factories are quick to construct, so they are still built per invocation.
+
+### Tests
+
+The HTTP and persistence layers are covered by `tests/test_api.py` (endpoint behavior through FastAPI's `TestClient`, including 404 and 409 error mapping) and `tests/test_chat_service.py` (thread-ID propagation, generated thread IDs and blocked-input handling, with SQLite writes faked). The agent-caching behavior is covered by `tests/test_agent_caching.py` (single creation, retry after failure, concurrent first calls). The optional MCP integration tests skip unless `MCP_INTEGRATION_TEST_URL` and `MCP_AUTH_TOKEN` are set. At the time of writing, the suite reports 37 passing and 2 skipped.
