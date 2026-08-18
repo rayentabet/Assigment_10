@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import json
 from uuid import uuid4
 
 import aiosqlite
@@ -10,6 +11,7 @@ from langgraph.types import Command
 
 from app.config import settings
 from app.graph import build_graph, new_state
+from app.helpers import valid_image
 
 _connection: aiosqlite.Connection | None = None
 _checkpointer: AsyncSqliteSaver | None = None
@@ -17,7 +19,7 @@ _graph = None
 _initialization_lock = asyncio.Lock()
 
 
-async def initialize_chat_service() -> None:
+async def initialize() -> None:
     """Open the SQLite checkpointer and compile the conversation graph."""
 
     global _checkpointer, _connection, _graph
@@ -61,13 +63,36 @@ async def initialize_chat_service() -> None:
                 PRIMARY KEY (thread_id, artifact_id),
                 FOREIGN KEY (thread_id) REFERENCES chat_threads(thread_id)
             );
+
+            CREATE TABLE IF NOT EXISTS chat_wiring_plans (
+                thread_id TEXT PRIMARY KEY,
+                plan_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (thread_id) REFERENCES chat_threads(thread_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS chat_purchase_refs (
+                thread_id TEXT PRIMARY KEY,
+                proposal_id TEXT,
+                order_id TEXT,
+                status TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (thread_id) REFERENCES chat_threads(thread_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS chat_projects (
+                thread_id TEXT PRIMARY KEY,
+                project_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (thread_id) REFERENCES chat_threads(thread_id)
+            );
             """
         )
         await _connection.commit()
         _graph = build_graph(checkpointer=_checkpointer)
 
 
-async def close_chat_service() -> None:
+async def shutdown() -> None:
     """Close SQLite cleanly when the application shuts down."""
 
     global _checkpointer, _connection, _graph
@@ -86,43 +111,67 @@ async def send_message(user_input: str, thread_id: str | None = None) -> dict:
     await create_thread(thread_id)
     await _save_message(thread_id, "user", user_input)
     graph = await get_graph()
+    project = await get_project(thread_id)
     result = await graph.ainvoke(
-        new_state(user_input, thread_id=thread_id),
+        new_state(user_input, thread_id=thread_id, project=project),
         config={"configurable": {"thread_id": thread_id}},
     )
     result["thread_id"] = thread_id
+    if result.get("project"):
+        await save_project(thread_id, result["project"])
     if result.get("final_answer") and not result.get("__interrupt__"):
         await _save_message(thread_id, "assistant", result["final_answer"])
         await register_artifacts(thread_id, result.get("image_paths", []))
+        project = result.get("project", {})
+        if project.get("wiring"):
+            await save_wiring(thread_id, project["wiring"])
+        if project.get("purchase"):
+            await save_purchase(thread_id, project["purchase"])
     return result
 
 
-async def resume_thread(thread_id: str, approved: bool) -> dict:
+async def resume_thread(
+    thread_id: str,
+    approved: bool,
+    payment_credential_id: str | None = None,
+) -> dict:
     """Resume a paused thread with its human approval decision."""
 
     graph = await get_graph()
     result = await graph.ainvoke(
-        Command(resume={"approved": approved}),
+        Command(
+            resume={
+                "approved": approved,
+                "payment_credential_id": payment_credential_id,
+            }
+        ),
         config={"configurable": {"thread_id": thread_id}},
     )
     result["thread_id"] = thread_id
+    if result.get("project"):
+        await save_project(thread_id, result["project"])
     if result.get("final_answer") and not result.get("__interrupt__"):
         await _save_message(thread_id, "assistant", result["final_answer"])
         await register_artifacts(thread_id, result.get("image_paths", []))
+        project = result.get("project", {})
+        if project.get("wiring"):
+            await save_wiring(thread_id, project["wiring"])
+        if project.get("purchase"):
+            await save_purchase(thread_id, project["purchase"])
     return result
 
 
 async def get_graph():
     """Compile and reuse the checkpointed conversation graph."""
 
-    await initialize_chat_service()
+    await initialize()
     return _graph
 
 
 async def create_thread(thread_id: str | None = None) -> str:
     """Register a conversation thread and return its identifier."""
 
-    await initialize_chat_service()
+    await initialize()
     thread_id = thread_id or str(uuid4())
     await _connection.execute(
         "INSERT OR IGNORE INTO chat_threads (thread_id) VALUES (?)",
@@ -132,10 +181,10 @@ async def create_thread(thread_id: str | None = None) -> str:
     return thread_id
 
 
-async def get_thread_history(thread_id: str) -> list[dict[str, str]] | None:
+async def get_history(thread_id: str) -> list[dict[str, str]] | None:
     """Return ordered public messages, or None when the thread does not exist."""
 
-    await initialize_chat_service()
+    await initialize()
     cursor = await _connection.execute(
         "SELECT 1 FROM chat_threads WHERE thread_id = ?",
         (thread_id,),
@@ -165,7 +214,7 @@ async def get_thread_history(thread_id: str) -> list[dict[str, str]] | None:
 async def list_threads(limit: int = 50) -> list[dict[str, str]]:
     """List conversations, using the first user message as a short title."""
 
-    await initialize_chat_service()
+    await initialize()
     cursor = await _connection.execute(
         """
         SELECT
@@ -207,7 +256,7 @@ async def list_threads(limit: int = 50) -> list[dict[str, str]]:
 async def delete_thread(thread_id: str) -> bool:
     """Delete a conversation, its artifacts, and all graph checkpoints."""
 
-    await initialize_chat_service()
+    await initialize()
     cursor = await _connection.execute(
         "SELECT 1 FROM chat_threads WHERE thread_id = ?",
         (thread_id,),
@@ -218,15 +267,12 @@ async def delete_thread(thread_id: str) -> bool:
         return False
 
     await _checkpointer.adelete_thread(thread_id)
-    await _connection.execute(
-        "DELETE FROM chat_artifacts WHERE thread_id = ?", (thread_id,)
-    )
-    await _connection.execute(
-        "DELETE FROM chat_messages WHERE thread_id = ?", (thread_id,)
-    )
-    await _connection.execute(
-        "DELETE FROM chat_threads WHERE thread_id = ?", (thread_id,)
-    )
+    await _connection.execute("DELETE FROM chat_artifacts WHERE thread_id = ?", (thread_id,))
+    await _connection.execute("DELETE FROM chat_wiring_plans WHERE thread_id = ?", (thread_id,))
+    await _connection.execute("DELETE FROM chat_purchase_refs WHERE thread_id = ?", (thread_id,))
+    await _connection.execute("DELETE FROM chat_projects WHERE thread_id = ?", (thread_id,))
+    await _connection.execute("DELETE FROM chat_messages WHERE thread_id = ?", (thread_id,))
+    await _connection.execute("DELETE FROM chat_threads WHERE thread_id = ?", (thread_id,))
     await _connection.commit()
     return True
 
@@ -234,10 +280,10 @@ async def delete_thread(thread_id: str) -> bool:
 async def register_artifacts(thread_id: str, paths: list[str]) -> list[str]:
     """Store validated image paths under opaque public identifiers."""
 
-    await initialize_chat_service()
+    await initialize()
     artifact_ids = []
     for raw_path in paths:
-        path = _validated_image_path(raw_path)
+        path = valid_image(raw_path)
         if path is None:
             continue
         artifact_id = hashlib.sha256(str(path).encode()).hexdigest()[:24]
@@ -253,10 +299,10 @@ async def register_artifacts(thread_id: str, paths: list[str]) -> list[str]:
     return artifact_ids
 
 
-async def get_thread_artifact_ids(thread_id: str) -> list[str]:
+async def list_artifacts(thread_id: str) -> list[str]:
     """Return image identifiers associated with a conversation."""
 
-    await initialize_chat_service()
+    await initialize()
     cursor = await _connection.execute(
         """
         SELECT artifact_id FROM chat_artifacts
@@ -269,10 +315,10 @@ async def get_thread_artifact_ids(thread_id: str) -> list[str]:
     return [row[0] for row in rows]
 
 
-async def get_artifact_path(artifact_id: str):
+async def get_artifact(artifact_id: str):
     """Resolve a registered image ID without accepting filesystem input."""
 
-    await initialize_chat_service()
+    await initialize()
     cursor = await _connection.execute(
         "SELECT path FROM chat_artifacts WHERE artifact_id = ? LIMIT 1",
         (artifact_id,),
@@ -281,24 +327,128 @@ async def get_artifact_path(artifact_id: str):
     await cursor.close()
     if row is None:
         return None
-    return _validated_image_path(row[0])
+    return valid_image(row[0])
 
 
-def _validated_image_path(raw_path: str):
-    """Allow only existing images under configured generated or RAG roots."""
+async def save_wiring(thread_id: str, plan: dict) -> None:
+    """Persist the latest wiring plan produced for a conversation."""
 
-    from pathlib import Path
+    await initialize()
+    await _connection.execute(
+        """
+        INSERT INTO chat_wiring_plans (thread_id, plan_json)
+        VALUES (?, ?)
+        ON CONFLICT(thread_id) DO UPDATE SET
+            plan_json = excluded.plan_json,
+            created_at = CURRENT_TIMESTAMP
+        """,
+        (thread_id, json.dumps(plan)),
+    )
+    await _connection.commit()
 
-    path = Path(raw_path).resolve()
-    allowed_roots = [
-        settings.generated_directory.resolve(),
-        settings.rag_project_path.resolve(),
-    ]
-    if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+
+async def get_wiring(thread_id: str) -> dict | None:
+    """Return the latest wiring plan saved for a conversation, if any."""
+
+    await initialize()
+    cursor = await _connection.execute(
+        "SELECT plan_json FROM chat_wiring_plans WHERE thread_id = ?",
+        (thread_id,),
+    )
+    row = await cursor.fetchone()
+    await cursor.close()
+    if row is None:
         return None
-    if not path.is_file() or not any(path.is_relative_to(root) for root in allowed_roots):
+    return json.loads(row[0])
+
+
+async def save_project(thread_id: str, project: dict) -> None:
+    """Persist the complete structured project state for subsequent turns."""
+
+    await initialize()
+    await _connection.execute(
+        """
+        INSERT INTO chat_projects (thread_id, project_json)
+        VALUES (?, ?)
+        ON CONFLICT(thread_id) DO UPDATE SET
+            project_json = excluded.project_json,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (thread_id, json.dumps(project)),
+    )
+    await _connection.commit()
+
+
+async def get_project(thread_id: str) -> dict | None:
+    """Load the complete project, with legacy wiring/purchase fallback."""
+
+    await initialize()
+    cursor = await _connection.execute(
+        "SELECT project_json FROM chat_projects WHERE thread_id = ?",
+        (thread_id,),
+    )
+    row = await cursor.fetchone()
+    await cursor.close()
+    if row is not None:
+        return json.loads(row[0])
+
+    wiring = await get_wiring(thread_id)
+    purchase = await get_purchase(thread_id)
+    if wiring is None and purchase is None:
         return None
-    return path
+    return {
+        "board": wiring.get("board") if wiring else None,
+        "components": wiring.get("components", []) if wiring else [],
+        "wiring": wiring,
+        "code_artifact": None,
+        "model_artifact": None,
+        "purchase": purchase,
+        "product_cards": [],
+    }
+
+
+async def save_purchase(thread_id: str, reference: dict) -> None:
+    """Persist a thin pointer (proposal/order id + status) to a submitted order.
+
+    Financial detail (price, total, currency) is not stored here; System B
+    remains the sole audit trail for that, per the proposal's requirement
+    that deleting a chat must not delete or cancel an order.
+    """
+
+    await initialize()
+    await _connection.execute(
+        """
+        INSERT INTO chat_purchase_refs (thread_id, proposal_id, order_id, status)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(thread_id) DO UPDATE SET
+            proposal_id = excluded.proposal_id,
+            order_id = excluded.order_id,
+            status = excluded.status,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (
+            thread_id,
+            reference.get("proposal_id"),
+            reference.get("order_id"),
+            reference.get("status"),
+        ),
+    )
+    await _connection.commit()
+
+
+async def get_purchase(thread_id: str) -> dict | None:
+    """Return the latest purchase reference saved for a conversation, if any."""
+
+    await initialize()
+    cursor = await _connection.execute(
+        "SELECT proposal_id, order_id, status FROM chat_purchase_refs WHERE thread_id = ?",
+        (thread_id,),
+    )
+    row = await cursor.fetchone()
+    await cursor.close()
+    if row is None:
+        return None
+    return {"proposal_id": row[0], "order_id": row[1], "status": row[2]}
 
 
 async def _save_message(thread_id: str, role: str, content: str) -> None:

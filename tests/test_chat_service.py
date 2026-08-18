@@ -16,9 +16,17 @@ def disable_sqlite_writes(monkeypatch):
     async def fake_register_artifacts(thread_id, paths):
         return []
 
+    async def fake_get_project(thread_id):
+        return None
+
+    async def fake_save_project(thread_id, project):
+        return None
+
     monkeypatch.setattr(chat_service, "create_thread", fake_create_thread)
     monkeypatch.setattr(chat_service, "_save_message", fake_save_message)
     monkeypatch.setattr(chat_service, "register_artifacts", fake_register_artifacts)
+    monkeypatch.setattr(chat_service, "get_project", fake_get_project)
+    monkeypatch.setattr(chat_service, "save_project", fake_save_project)
 
 
 class FakeGraph:
@@ -66,6 +74,40 @@ async def test_send_message_uses_supplied_thread_id(monkeypatch) -> None:
     assert state["thread_id"] == "thread-123"
     assert config["configurable"]["thread_id"] == "thread-123"
     assert result["thread_id"] == "thread-123"
+
+
+@pytest.mark.asyncio
+async def test_send_message_restores_saved_wiring(monkeypatch) -> None:
+    graph = FakeGraph()
+    wiring = {
+        "board": "arduino_uno",
+        "components": [{"component": "button", "pins": {"SIGNAL": 2, "GND": "GND"}}],
+        "assignments": {"button": {"SIGNAL": 2, "GND": "GND"}},
+    }
+    project = {
+        "board": "arduino_uno",
+        "components": wiring["components"],
+        "wiring": wiring,
+        "code_artifact": "generated/robot.ino",
+        "model_artifact": None,
+        "purchase": None,
+    }
+
+    async def fake_get_graph():
+        return graph
+
+    async def fake_get_project(thread_id):
+        return project
+
+    monkeypatch.setattr(chat_service, "get_graph", fake_get_graph)
+    monkeypatch.setattr(chat_service, "get_project", fake_get_project)
+
+    await chat_service.send_message("Add an ultrasonic sensor", thread_id="thread-123")
+
+    state, _ = graph.calls[0]
+    assert state["project"]["wiring"] == wiring
+    assert state["project"]["board"] == "arduino_uno"
+    assert state["project"]["code_artifact"] == "generated/robot.ino"
 
 
 @pytest.mark.asyncio

@@ -1,195 +1,317 @@
-"""Run the ten routing and guardrail evaluation cases."""
+"""Run the v2 System A routing, tool, approval, and guardrail evaluation."""
+
+from __future__ import annotations
 
 import argparse
 import asyncio
 import csv
 import json
 import re
+import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
+from app import chat_service
+from app.chat_service import resume_thread, send_message
 from app.config import settings
-from app.chat_service import send_message
-from app.guardrails import BLOCKED_MESSAGE, check_output
+from app.guardrails import BLOCKED_MESSAGE
+from evaluation.comparators import aggregate_summary, call_entries, compare_case
 
 HERE = Path(__file__).parent
-QUERIES_FILE = HERE / "queries.json"
-RESULTS_FILE = HERE / "results.csv"
+DATASET = HERE / "golden_dataset" / "v2" / "cases.jsonl"
 RUNS_DIRECTORY = HERE / "runs"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-name", default="evaluation", help="Short label for this run")
+    parser.add_argument("--run-name", default="system_a_v2")
+    parser.add_argument("--case", action="append", dest="case_ids", help="Run one case ID")
+    parser.add_argument("--category", action="append", dest="categories")
+    parser.add_argument("--tag", action="append", dest="tags")
+    parser.add_argument(
+        "--exclude-requires",
+        action="store_true",
+        help="Skip cases that declare an external service/credential requirement",
+    )
+    parser.add_argument("--fail-fast", action="store_true")
     return parser.parse_args()
 
 
-def create_run_directory(name: str) -> Path:
-    """Create a safe, timestamped directory for one evaluation run."""
+def load_cases(path: Path = DATASET) -> list[dict]:
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
+
+def select_cases(cases: list[dict], args: argparse.Namespace) -> list[dict]:
+    selected = cases
+    if args.case_ids:
+        requested = set(args.case_ids)
+        selected = [case for case in selected if case["id"] in requested]
+        missing = requested - {case["id"] for case in selected}
+        if missing:
+            raise ValueError(f"Unknown case ID(s): {sorted(missing)}")
+    if args.categories:
+        selected = [case for case in selected if case["category"] in set(args.categories)]
+    if args.tags:
+        selected = [case for case in selected if set(args.tags) <= set(case.get("tags", []))]
+    if args.exclude_requires:
+        selected = [case for case in selected if not case.get("requires")]
+    if not selected:
+        raise ValueError("No cases matched the selected filters")
+    return selected
+
+
+def create_run_directory(name: str) -> Path:
     safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", name).strip("_") or "evaluation"
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    run_directory = RUNS_DIRECTORY / f"{timestamp}_{safe_name}"
-    run_directory.mkdir(parents=True, exist_ok=False)
-    return run_directory
+    directory = RUNS_DIRECTORY / f"{timestamp}_{safe_name}"
+    directory.mkdir(parents=True, exist_ok=False)
+    return directory
 
 
-def write_results(results: list[dict[str, Any]], path: Path) -> None:
-    """Write accumulated results so partial runs are not lost."""
-
-    if not results:
-        return
-    with path.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=results[0])
-        writer.writeheader()
-        writer.writerows(results)
+def interrupt_payload(result: dict) -> dict | None:
+    interrupts = result.get("__interrupt__") or []
+    if not interrupts:
+        return None
+    payload = getattr(interrupts[0], "value", interrupts[0])
+    return payload if isinstance(payload, dict) else {"value": payload}
 
 
-def write_metadata(path: Path, **values: Any) -> None:
-    path.write_text(json.dumps(values, indent=2), encoding="utf-8")
+def guardrail_outcome(case: dict, result: dict, answer: str) -> str:
+    if answer == BLOCKED_MESSAGE or result.get("input_blocked"):
+        return "blocked"
+    sensitive = case.get("sensitive_values", [])
+    safe_input = result.get("original_query", case.get("query", ""))
+    if sensitive and all(value not in safe_input and value not in answer for value in sensitive):
+        return "masked"
+    return "passed"
 
 
-def routes_match(expected: list[str], actual: list[str]) -> bool:
-    """Require exactly the expected route sequence."""
+async def _invoke_case(case: dict) -> dict:
+    approvals: list[dict] = []
+    steps: list[dict] = []
+    result: dict = {}
+    thread_id: str | None = None
+    turns = case.get("turns") or [{"query": case["query"]}]
 
-    return expected == actual
-
-
-def failure_reason(
-    route_ok: bool, guardrail_ok: bool, answer: str, expected: list[str], actual: list[str]
-) -> str:
-    problems = []
-    if not route_ok:
-        problems.append(f"expected routes {expected}, got {actual}")
-    if not guardrail_ok:
-        problems.append("guardrail outcome did not match")
-    if not answer.strip():
-        problems.append("empty answer")
-    return "; ".join(problems)
-
-
-async def evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
-    """Evaluate one full workflow or one supplied output."""
-
-    expected_routes = case["expected_routes"]
-    expected_guardrail = case["expected_guardrail"]
-
-    if case.get("mode") == "output_only":
-        candidate = case["candidate_output"]
-        checked = await check_output(case["query"], candidate, evidence=[])
-        answer = checked or BLOCKED_MESSAGE
-        raw_answer = candidate
-        actual_routes = []
-        iteration_count = 0
-        actual_guardrail = (
-            "blocked" if checked is None else "masked" if checked != candidate else "passed"
-        )
-        tool_trace = []
-        image_paths = []
-    else:
-        result = await send_message(case["query"])
-        answer = result["final_answer"]
-        raw_answer = result.get("raw_answer", answer)
-        actual_routes = result["route_history"]
-        iteration_count = result["iteration_count"]
-        tool_trace = result.get("tool_trace", [])
-        image_paths = result.get("image_paths", [])
-        sensitive_value = case.get("sensitive_value")
-        if answer == BLOCKED_MESSAGE:
-            actual_guardrail = "blocked"
-        elif sensitive_value and sensitive_value not in answer:
-            actual_guardrail = "masked"
+    for turn in turns:
+        if "query" in turn:
+            result = await send_message(turn["query"], thread_id=thread_id)
+            thread_id = result["thread_id"]
+            operation = "query"
+        elif "resume" in turn:
+            decision = bool(turn["resume"]["approved"])
+            if approvals and approvals[-1]["decision"] == "pending":
+                approvals[-1]["decision"] = "approved" if decision else "rejected"
+            result = await resume_thread(
+                thread_id or "",
+                decision,
+                payment_credential_id=turn["resume"].get("payment_credential_id"),
+            )
+            operation = "resume"
         else:
-            actual_guardrail = "passed"
+            raise ValueError(f"Unsupported turn in {case['id']}: {turn}")
 
-    route_ok = routes_match(expected_routes, actual_routes)
-    guardrail_ok = expected_guardrail == actual_guardrail
-    answer_correct = route_ok and guardrail_ok and bool(answer.strip())
+        payload = interrupt_payload(result)
+        if payload:
+            approvals.append(
+                {
+                    "action": payload.get("action"),
+                    "decision": "pending",
+                    "payload": payload,
+                }
+            )
+        steps.append(
+            {
+                "operation": operation,
+                "route_history": result.get("route_history", []),
+                "interrupt": payload,
+            }
+        )
 
+    answer = result.get("final_answer") or ""
+    return {
+        "result": result,
+        "answer": answer,
+        "tool_trace": result.get("tool_trace", []),
+        "approvals": approvals,
+        "steps": steps,
+        "guardrail": guardrail_outcome(case, result, answer),
+        "error": None,
+    }
+
+
+async def execute_case(case: dict) -> dict:
+    simulation = case.get("simulate", {}).get("type")
+    if simulation != "system_b_unreachable":
+        return await _invoke_case(case)
+
+    from app.integrations import component_client
+
+    original = (
+        settings.component_manager_a2a_url,
+        settings.a2a_timeout_seconds,
+        settings.a2a_max_retries,
+    )
+    try:
+        settings.component_manager_a2a_url = "http://127.0.0.1:1"
+        settings.a2a_timeout_seconds = 0.25
+        settings.a2a_max_retries = 0
+        component_client._client = None
+        return await _invoke_case(case)
+    finally:
+        (
+            settings.component_manager_a2a_url,
+            settings.a2a_timeout_seconds,
+            settings.a2a_max_retries,
+        ) = original
+        component_client._client = None
+
+
+def public_result(case: dict, execution: dict, comparison: dict, duration_ms: float) -> dict:
+    state = execution.get("result", {})
     return {
         "id": case["id"],
         "category": case["category"],
-        "query": case["query"],
-        "expected_route": " -> ".join(expected_routes) or "none",
-        "actual_route": " -> ".join(actual_routes) or "none",
-        "iteration_count": iteration_count,
-        "expected_guardrail": expected_guardrail,
-        "actual_guardrail": actual_guardrail,
-        "answer_correct": answer_correct,
-        "what_went_wrong": failure_reason(
-            route_ok, guardrail_ok, answer, expected_routes, actual_routes
+        "tags": case.get("tags", []),
+        "requires": case.get("requires", []),
+        "query": case.get("query") or next(
+            (turn["query"] for turn in case.get("turns", []) if "query" in turn), ""
         ),
-        "tool_calls": json.dumps(tool_trace, ensure_ascii=False),
-        "image_paths": json.dumps(image_paths, ensure_ascii=False),
-        "raw_answer": raw_answer,
-        "answer": answer,
+        "expected": case["expected"],
+        "expected_routes": case["expected"].get("routes", []),
+        "actual_routes": state.get("route_history", []),
+        "expected_guardrail": case["expected"].get("guardrail"),
+        "actual_guardrail": execution.get("guardrail"),
+        "duration_ms": round(duration_ms, 3),
+        "iteration_count": state.get("iteration_count", 0),
+        "answer": execution.get("answer", ""),
+        "approvals": execution.get("approvals", []),
+        "steps": execution.get("steps", []),
+        "tool_calls": call_entries(execution.get("tool_trace", [])),
+        "tool_trace": execution.get("tool_trace", []),
+        "project": state.get("project", {}),
+        "error": execution.get("error"),
+        **comparison,
     }
+
+
+def error_execution(error: Exception) -> dict:
+    return {
+        "result": {},
+        "answer": "",
+        "tool_trace": [],
+        "approvals": [],
+        "steps": [],
+        "guardrail": "error",
+        "error": f"{type(error).__name__}: {error}",
+    }
+
+
+def write_jsonl(path: Path, rows: list[dict]) -> None:
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
+def write_csv(path: Path, rows: list[dict]) -> None:
+    columns = [
+        "id",
+        "category",
+        "case_pass",
+        "route_correct",
+        "tool_selection_correct",
+        "tool_arguments_correct",
+        "tool_order_correct",
+        "approval_correct",
+        "guardrail_correct",
+        "project_correct",
+        "cross_check_correct",
+        "recovery_correct",
+        "expected_routes",
+        "actual_routes",
+        "duration_ms",
+        "iteration_count",
+        "failures",
+    ]
+    with path.open("w", newline="", encoding="utf-8") as output:
+        writer = csv.DictWriter(output, fieldnames=columns)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    key: json.dumps(row[key], ensure_ascii=False)
+                    if isinstance(row.get(key), (list, dict))
+                    else row.get(key)
+                    for key in columns
+                }
+            )
 
 
 async def main() -> None:
     args = parse_args()
-    cases = json.loads(QUERIES_FILE.read_text())
+    cases = select_cases(load_cases(), args)
     run_directory = create_run_directory(args.run_name)
-    run_results_file = run_directory / "results.csv"
-    metadata_file = run_directory / "metadata.json"
-    started_at = datetime.now(UTC)
+    results_path = run_directory / "case_results.jsonl"
+    csv_path = run_directory / "results.csv"
+    metadata_path = run_directory / "metadata.json"
+    summary_path = run_directory / "summary.json"
+    started = datetime.now(UTC)
     results = []
 
     metadata = {
+        "schema_version": 2,
+        "dataset": str(DATASET),
         "name": args.run_name,
         "status": "running",
-        "started_at": started_at.isoformat(),
+        "started_at": started.isoformat(),
         "completed_at": None,
-        "score": 0,
-        "total": len(cases),
+        "selected_cases": [case["id"] for case in cases],
         "models": {
             "supervisor": settings.supervisor_model,
             "guardrails": settings.guardrail_model,
             "rag": settings.rag_model,
             "coding": settings.code_model,
-            "cad": settings.visualization_model,
-            "general": settings.general_model,
+            "wiring": settings.wiring_model,
+            "visualization": settings.visualization_model,
         },
     }
-    write_metadata(metadata_file, **metadata)
+    metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     try:
         for case in cases:
+            started_case = time.perf_counter()
             try:
-                result = await evaluate_case(case)
-            except Exception as error:
-                result = {
-                    "id": case["id"],
-                    "category": case["category"],
-                    "query": case["query"],
-                    "expected_route": " -> ".join(case["expected_routes"]) or "none",
-                    "actual_route": "error",
-                    "iteration_count": 0,
-                    "expected_guardrail": case["expected_guardrail"],
-                    "actual_guardrail": "error",
-                    "answer_correct": False,
-                    "what_went_wrong": f"{type(error).__name__}: {error}",
-                    "tool_calls": "[]",
-                    "image_paths": "[]",
-                    "raw_answer": "",
-                    "answer": "",
-                }
+                execution = await execute_case(case)
+            except Exception as error:  # noqa: BLE001 - one failed case must not end the run
+                execution = error_execution(error)
+            comparison = compare_case(case, execution)
+            result = public_result(
+                case, execution, comparison, (time.perf_counter() - started_case) * 1000
+            )
             results.append(result)
-            write_results(results, run_results_file)
-            write_results(results, RESULTS_FILE)
-            status = "PASS" if result["answer_correct"] else "FAIL"
-            print(f"{status}: {result['id']} ({result['actual_route']})", flush=True)
+            write_jsonl(results_path, results)
+            write_csv(csv_path, results)
+            summary_path.write_text(
+                json.dumps(aggregate_summary(results), indent=2), encoding="utf-8"
+            )
+            print(
+                f"{'PASS' if result['case_pass'] else 'FAIL'}: {case['id']} "
+                f"({' -> '.join(result['actual_routes']) or 'FINISH'})",
+                flush=True,
+            )
+            if args.fail_fast and not result["case_pass"]:
+                break
     finally:
-        passed = sum(result["answer_correct"] for result in results)
-        metadata.update(
-            status="completed" if len(results) == len(cases) else "interrupted",
-            completed_at=datetime.now(UTC).isoformat(),
-            score=passed,
-        )
-        write_metadata(metadata_file, **metadata)
+        metadata["status"] = "completed" if len(results) == len(cases) else "interrupted"
+        metadata["completed_at"] = datetime.now(UTC).isoformat()
+        metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+        await chat_service.shutdown()
 
-    print(f"\nScore: {passed}/{len(results)}")
+    summary = aggregate_summary(results)
+    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    passed = summary["metrics"]["case_pass"]["passed"]
+    print(f"\nCases passed: {passed}/{len(results)}")
     print(f"Saved run: {run_directory}")
 
 

@@ -33,4 +33,3 @@ def cached_agent(factory: Callable[[], Awaitable[T]]) -> Callable[[], Awaitable[
             return agent
 
     return wrapper
-

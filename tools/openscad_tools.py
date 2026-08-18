@@ -19,7 +19,7 @@ def clean_name(model_name: str) -> str:
     return name
 
 
-def get_model_path(model_name: str) -> Path:
+def model_path(model_name: str) -> Path:
     """Return the output path for an OpenSCAD model."""
 
     return ROBOT_FOLDER / clean_name(model_name) / "model.scad"
@@ -29,7 +29,7 @@ def get_model_path(model_name: str) -> Path:
 def save_openscad(model_name: str, code: str) -> dict:
     """Save OpenSCAD code as a .scad file."""
 
-    path = get_model_path(model_name)
+    path = model_path(model_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(code, encoding="utf-8")
 

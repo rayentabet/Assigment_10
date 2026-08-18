@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1050" viewBox="0 0 1500 1050">
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.node{fill:#fff;stroke:#334155;stroke-width:2}.guard{fill:#e0f2fe;stroke:#0284c7}.agent{fill:#ede9fe;stroke:#7c3aed}.approval{fill:#fef3c7;stroke:#d97706}.finish{fill:#dcfce7;stroke:#16a34a}.label{font:600 20px Arial,sans-serif;fill:#0f172a;text-anchor:middle}.small{font:15px Arial,sans-serif;fill:#475569;text-anchor:middle}.edge{fill:none;stroke:#64748b;stroke-width:2.2;marker-end:url(#arrow)}.conditional{stroke-dasharray:7 6}.edgeLabel{font:14px Arial,sans-serif;fill:#475569;text-anchor:middle}.title{font:700 32px Arial,sans-serif;fill:#0f172a;text-anchor:middle}.subtitle{font:17px Arial,sans-serif;fill:#475569;text-anchor:middle}
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#64748b"/></marker>
+  </defs>
+  <rect class="bg" width="1500" height="1050" rx="24"/>
+  <text class="title" x="750" y="48">Robotics Multi-Agent LangGraph</text>
+  <text class="subtitle" x="750" y="76">Compiled workflow from app/graph.py</text>
+
+  <!-- Edges -->
+  <path class="edge" d="M750 130 L750 175"/>
+  <path class="edge conditional" d="M750 245 L750 300"/><text class="edgeLabel" x="785" y="278">continue</text>
+  <path class="edge conditional" d="M875 210 C1230 210 1320 250 1320 905"/><text class="edgeLabel" x="1125" y="205">blocked</text>
+
+  <path class="edge conditional" d="M620 365 C500 365 430 410 285 480"/>
+  <path class="edge conditional" d="M645 385 C580 450 535 480 500 525"/>
+  <path class="edge conditional" d="M750 400 L750 525"/>
+  <path class="edge conditional" d="M855 385 C920 450 965 480 1000 525"/>
+  <path class="edge conditional" d="M880 365 C1000 365 1070 410 1215 480"/>
+  <path class="edge conditional" d="M750 400 C750 450 565 420 565 665"/><text class="edgeLabel" x="625" y="442">approval</text>
+  <path class="edge conditional" d="M880 345 C1140 345 1320 395 1320 805"/><text class="edgeLabel" x="1110" y="340">FINISH</text>
+
+  <path class="edge" d="M285 550 C285 620 650 620 650 400"/>
+  <path class="edge" d="M500 595 C500 630 680 630 680 400"/>
+  <path class="edge" d="M750 595 L750 400"/>
+  <path class="edge" d="M1000 595 C1000 630 820 630 820 400"/>
+  <path class="edge conditional" d="M1215 550 C1215 635 960 630 850 400"/><text class="edgeLabel" x="1095" y="625">no proposal</text>
+
+  <path class="edge conditional" d="M1215 550 L1215 665"/><text class="edgeLabel" x="1270" y="620">purchase proposal</text>
+  <path class="edge conditional" d="M1075 720 C970 720 980 595 1070 560"/><text class="edgeLabel" x="1000" y="690">approved</text>
+  <path class="edge conditional" d="M1215 775 C1215 815 1270 815 1320 840"/><text class="edgeLabel" x="1260" y="802">rejected</text>
+
+  <path class="edge conditional" d="M565 735 C500 735 450 665 475 595"/><text class="edgeLabel" x="470" y="700">coding</text>
+  <path class="edge conditional" d="M640 735 C820 735 940 680 975 595"/><text class="edgeLabel" x="835" y="710">visualization</text>
+  <path class="edge conditional" d="M565 735 C565 820 1120 780 1230 840"/><text class="edgeLabel" x="830" y="790">rejected</text>
+
+  <path class="edge" d="M1320 875 L1320 920"/>
+  <path class="edge" d="M1320 980 L1320 1015"/>
+
+  <!-- Nodes -->
+  <rect class="node finish" x="675" y="95" width="150" height="35" rx="18"/><text class="label" x="750" y="120">START</text>
+  <rect class="node guard" x="625" y="175" width="250" height="70" rx="14"/><text class="label" x="750" y="206">Input Guardrail</text><text class="small" x="750" y="230">mask or block input</text>
+  <rect class="node" x="620" y="300" width="260" height="100" rx="14"/><text class="label" x="750" y="340">Supervisor</text><text class="small" x="750" y="366">route next task</text><text class="small" x="750" y="386">no tools</text>
+
+  <rect class="node agent" x="160" y="480" width="250" height="70" rx="14"/><text class="label" x="285" y="511">RAG Agent</text><text class="small" x="285" y="535">MCP documentation tools</text>
+  <rect class="node agent" x="375" y="525" width="250" height="70" rx="14"/><text class="label" x="500" y="556">Coding Agent</text><text class="small" x="500" y="580">save and validate code</text>
+  <rect class="node agent" x="625" y="525" width="250" height="70" rx="14"/><text class="label" x="750" y="556">Wiring Agent</text><text class="small" x="750" y="580">allocate and validate pins</text>
+  <rect class="node agent" x="875" y="525" width="250" height="70" rx="14"/><text class="label" x="1000" y="556">Visualization Agent</text><text class="small" x="1000" y="580">OpenSCAD and rendering</text>
+  <rect class="node agent" x="1070" y="480" width="290" height="70" rx="14"/><text class="label" x="1215" y="511">Component Manager</text><text class="small" x="1215" y="535">A2A relay to Google ADK System B</text>
+
+  <rect class="node approval" x="435" y="665" width="260" height="70" rx="14"/><text class="label" x="565" y="696">Human Approval</text><text class="small" x="565" y="720">code or render action</text>
+  <rect class="node approval" x="1075" y="665" width="280" height="110" rx="14"/><text class="label" x="1215" y="700">Purchase Approval</text><text class="small" x="1215" y="728">approve exact proposal</text><text class="small" x="1215" y="752">or cancel purchase</text>
+
+  <rect class="node finish" x="1200" y="805" width="240" height="70" rx="14"/><text class="label" x="1320" y="836">Finalizer</text><text class="small" x="1320" y="860">combine specialist results</text>
+  <rect class="node guard" x="1190" y="920" width="260" height="60" rx="14"/><text class="label" x="1320" y="957">Output Guardrail</text>
+  <rect class="node finish" x="1255" y="1015" width="130" height="30" rx="15"/><text class="label" x="1320" y="1038">END</text>
+</svg>

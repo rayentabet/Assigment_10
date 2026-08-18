@@ -9,8 +9,7 @@ from app.config import settings
 
 RAG_PROMPT = """You are the robotics documentation specialist.
 Use the MCP tools for every documentation question.
-Use search_documents when evidence is requested.
-Use answer_question when the user wants an answer.
+Use answer_question to retrieve evidence and produce the grounded answer.
 After retrieval, inspect the returned contexts. When a relevant context has a
 non-empty image_path, call show_image for that image even if the user did not
 explicitly request it. Do not show irrelevant images or invent image paths.
@@ -22,7 +21,7 @@ hidden reasoning, scratch work, or chain-of-thought.
 
 
 @cached_agent
-async def create_rag_agent():
+async def build_agent():
     """Create the RAG agent and load its tools through MCP."""
 
     if not settings.mcp_auth_token:
@@ -40,6 +39,7 @@ async def create_rag_agent():
         }
     )
     tools = await client.get_tools(server_name="arduino_rag")
+    tools = [tool for tool in tools if tool.name in {"answer_question", "show_image"}]
     model = ChatGoogleGenerativeAI(model=settings.rag_model, temperature=0)
 
     return create_agent(

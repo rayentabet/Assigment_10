@@ -10,12 +10,10 @@ client = TestClient(main.app)
 
 @pytest.fixture(autouse=True)
 def disable_artifact_database(monkeypatch):
-    async def fake_get_thread_artifact_ids(thread_id: str):
+    async def fake_artifacts(thread_id: str):
         return []
 
-    monkeypatch.setattr(
-        main, "get_thread_artifact_ids", fake_get_thread_artifact_ids
-    )
+    monkeypatch.setattr(main, "list_artifacts", fake_artifacts)
 
 
 def test_health() -> None:
@@ -23,6 +21,25 @@ def test_health() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_sandbox_card_is_exchanged_for_opaque_credential() -> None:
+    response = client.post(
+        "/payments/sandbox/tokenize",
+        json={
+            "card_number": "4242 4242 4242 4242",
+            "expiry": "12/30",
+            "cvv": "123",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["credential_id"].startswith("cp_test_")
+    assert payload["last4"] == "4242"
+    assert "card_number" not in payload
+    assert "cvv" not in payload
+    assert "expiry" not in payload
 
 
 def test_create_thread(monkeypatch) -> None:
@@ -57,7 +74,13 @@ def test_post_message_returns_answer(monkeypatch) -> None:
         "status": "completed",
         "answer": "Answer to: Hello",
         "approval": None,
+        "purchase_proposal": None,
         "image_urls": [],
+        "wiring_plan": None,
+        "purchase_reference": None,
+        "product_cards": [],
+        "tool_trace": [],
+        "route_history": [],
     }
 
 
@@ -96,7 +119,7 @@ def test_blank_message_is_rejected() -> None:
 
 
 def test_get_thread_messages(monkeypatch) -> None:
-    async def fake_get_thread_history(thread_id: str):
+    async def fake_history(thread_id: str):
         return [
             {
                 "role": "user",
@@ -110,7 +133,12 @@ def test_get_thread_messages(monkeypatch) -> None:
             },
         ]
 
-    monkeypatch.setattr(main, "get_thread_history", fake_get_thread_history)
+    monkeypatch.setattr(main, "get_history", fake_history)
+
+    async def fake_project(thread_id: str):
+        return None
+
+    monkeypatch.setattr(main, "get_project", fake_project)
 
     response = client.get("/threads/thread-123/messages")
 
@@ -122,10 +150,10 @@ def test_get_thread_messages(monkeypatch) -> None:
 
 
 def test_get_unknown_thread_returns_404(monkeypatch) -> None:
-    async def fake_get_thread_history(thread_id: str):
+    async def fake_history(thread_id: str):
         return None
 
-    monkeypatch.setattr(main, "get_thread_history", fake_get_thread_history)
+    monkeypatch.setattr(main, "get_history", fake_history)
 
     response = client.get("/threads/missing/messages")
 

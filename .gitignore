@@ -1,16 +1,26 @@
 .env
+certs/
+component_manager/data/.oauth_key
+component_manager/data/.approval_key
+component_manager/data/.ap2_key.pem
 .venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+*.egg-info/
 .DS_Store
 
 # Local chat persistence
 data/*.sqlite
 data/*.sqlite-shm
 data/*.sqlite-wal
+
+# Component Manager (System B) local persistence
+component_manager/data/*.sqlite
+component_manager/data/*.sqlite-shm
+component_manager/data/*.sqlite-wal
 
 # Generated artifacts (keep directory placeholders)
 generated/code/*

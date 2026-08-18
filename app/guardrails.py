@@ -1,4 +1,4 @@
-"""NeMo input and output guardrails around the LangGraph workflow."""
+"""NeMo input guardrails around the LangGraph workflow."""
 
 import re
 from functools import lru_cache
@@ -31,7 +31,7 @@ def mask_text(text: str, entities=SENSITIVE_PATTERNS) -> str:
     return text
 
 
-async def mask_sensitive_data(source: str, text: str, config) -> str:
+async def mask_data(source: str, text: str, config) -> str:
     """Mask configured sensitive values without requiring a large NLP model."""
 
     options = getattr(config.rails.config.sensitive_data_detection, source)
@@ -45,7 +45,7 @@ def get_guardrails() -> LLMRails:
     config = RailsConfig.from_path(str(GUARDRAILS_CONFIG))
     safety_model = ChatGroq(model=settings.guardrail_model, temperature=0)
     rails = LLMRails(config=config, llm=safety_model)
-    rails.register_action(mask_sensitive_data, name="mask_sensitive_data")
+    rails.register_action(mask_data, name="mask_sensitive_data")
     return rails
 
 
@@ -68,19 +68,3 @@ async def check_input(user_input: str) -> str | None:
         return None
     return result.content or masked_input
 
-
-async def check_output(
-    user_input: str, answer: str, evidence: list[str]
-) -> str | None:
-    """Reject unsafe output and mask PII."""
-
-    messages = [
-        {"role": "user", "content": user_input},
-        {"role": "assistant", "content": answer},
-    ]
-    result = await get_guardrails().check_async(
-        messages, rail_types=[RailType.OUTPUT]
-    )
-    if _is_blocked(result):
-        return None
-    return result.content or answer

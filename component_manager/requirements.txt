@@ -1,0 +1,9 @@
+google-adk>=2,<3
+ap2 @ git+https://github.com/google-agentic-commerce/AP2.git@e1ea56db72a6385bce3e5c1112b3a56ce60acb43
+a2a-sdk[http-server]>=1,<2
+aiosqlite>=0.20,<1
+fastapi>=0.115,<1
+pydantic>=2.10
+pydantic-settings>=2.7
+python-dotenv>=1.0
+uvicorn[standard]>=0.34,<1

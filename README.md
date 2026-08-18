@@ -1,24 +1,30 @@
 # Robotics Multi-Agent MCP System
 
-This project coordinates four specialists through a LangGraph supervisor:
+This project coordinates four robotics specialists through a LangGraph supervisor:
 
 - an MCP-backed robotics RAG agent;
 - a code generation and validation agent;
-- an OpenSCAD robot visualization agent;
-- a general-purpose agent.
+- a wiring and pin management agent;
+- an OpenSCAD robot visualization agent.
+
+For inventory, pricing, and purchasing, the supervisor routes directly to a
+dedicated A2A relay node. That node contacts the independent Google ADK
+Component Manager; it does not add another local model between the systems.
 
 The Arduino RAG MCP server runs as a Dockerized Streamable HTTP service. Both
 LangGraph and OpenCode connect to the same network endpoint rather than starting
 separate MCP subprocesses over stdio.
+
+The Component Manager (System B) is a separate, independently deployed Google
+ADK agent — see [component_manager/README.md](component_manager/README.md).
+This app only holds an A2A client to it (`app/integrations/component_client.py`); there
+is no other coupling to that service's code or database.
 
 ## Prerequisites
 
 - Python 3.11 or newer
 - OpenSCAD available as `openscad`
 - Qdrant and the existing Assignment 8 RAG dependencies
-
-The current machine only exposes Python 3.9, so install Python 3.11 before
-creating the virtual environment.
 
 ## Initial setup
 
@@ -52,6 +58,16 @@ openssl rand -hex 32
 
 Code is confined to `generated/code/`. OpenSCAD source and PNG previews are
 confined to `generated/robots/<model-name>/`.
+
+## Documentation
+
+- [Project proposal](docs/proposal/PROJECT_PROPOSAL.md)
+- [Submission PDF](docs/proposal/PROJECT_PROPOSAL.pdf)
+- [Compiled LangGraph diagram](docs/architecture/langgraph_workflow.svg)
+- [Detailed code walkthrough](docs/CODE_WALKTHROUGH.md)
+- [Component Manager](component_manager/README.md)
+- [React frontend](web/README.md)
+- [Dockerizing the stack (manual + compose)](docs/DOCKER_SETUP.md)
 
 ## Evaluation dashboard
 
@@ -162,10 +178,16 @@ PYTHONPATH=. .venv/bin/python -m app.cli
 FastAPI is the main application interface. Start it after the MCP server is ready:
 
 ```bash
-PYTHONPATH=. .venv/bin/uvicorn app.api.main:app --reload --port 8000
+PYTHONPATH=. .venv/bin/uvicorn app.api.main:app --host localhost --port 8000 \
+  --ssl-keyfile certs/localhost-key.pem --ssl-certfile certs/localhost.pem
 ```
 
-Interactive API documentation is available at `http://127.0.0.1:8000/docs`.
+Interactive API documentation is available at `https://localhost:8000/docs`.
+
+The DigiKey sandbox Ordering integration uses three-legged OAuth. Open the
+React activity panel and choose **Connect DigiKey** before approving a sandbox
+order. DigiKey login credentials remain on DigiKey's site; this application
+stores only encrypted, rotating OAuth tokens in System B's SQLite database.
 Create a thread, then send messages using its returned ID:
 
 Conversation checkpoints are persisted in `data/chat_history.sqlite` by default,
@@ -200,18 +222,23 @@ curl -X POST http://127.0.0.1:8000/threads/THREAD_ID/resume \
   -d '{"approved":true}'
 ```
 
-## Streamlit chat frontend
+## React frontend
 
-Keep FastAPI running, then start the frontend in a second terminal:
+The primary UI — see [web/README.md](web/README.md) for full setup. Keep
+FastAPI running, then in a second terminal:
 
 ```bash
-PYTHONPATH=. .venv/bin/streamlit run frontend/streamlit_app.py
+cd web
+npm install
+npm run dev
 ```
 
-The UI creates and retains a thread ID, reloads SQLite-backed history, sends chat
-messages through FastAPI, and displays approval controls for paused coding or
-visualization actions. Set `API_BASE_URL` in `.env` if FastAPI is not running at
-`http://127.0.0.1:8000`.
+It creates and retains a thread ID (in `localStorage`, so it survives page
+reloads), reloads history, sends chat messages through FastAPI, and shows
+approval controls for both paused coding/visualization actions and pending
+purchase proposals, plus a wiring-plan table and tool-activity trace for the
+last turn. `app/config.py`'s `cors_allowed_origins` must include the dev
+server's origin (`http://localhost:5173` by default).
 
 Stop the MCP service without affecting the separately running Qdrant container:
 

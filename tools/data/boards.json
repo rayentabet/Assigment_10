@@ -1,0 +1,72 @@
+{
+  "arduino_uno": {
+    "display_name": "Arduino Uno",
+    "logic_voltage": 5.0,
+    "digital_pins": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+    "pwm_pins": [3, 5, 6, 9, 10, 11],
+    "analog_pins": ["A0", "A1", "A2", "A3", "A4", "A5"],
+    "input_only_pins": [],
+    "uart": {"rx": 0, "tx": 1},
+    "i2c": {"sda": "A4", "scl": "A5"},
+    "spi": {"mosi": 11, "miso": 12, "sck": 13, "ss": 10},
+    "power_pins": ["5V", "3V3", "VIN", "GND"],
+    "reserved_pins": {
+      "13": "Onboard LED, also the SPI SCK line",
+      "0": "USB serial RX; avoid unless the serial monitor is unused",
+      "1": "USB serial TX; avoid unless the serial monitor is unused"
+    }
+  },
+  "arduino_mega": {
+    "display_name": "Arduino Mega 2560",
+    "logic_voltage": 5.0,
+    "digital_pins": [
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
+      38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49
+    ],
+    "pwm_pins": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46],
+    "analog_pins": [
+      "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7",
+      "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15"
+    ],
+    "input_only_pins": [],
+    "uart": {"rx": 0, "tx": 1},
+    "additional_uart": [
+      {"name": "Serial1", "rx": 19, "tx": 18},
+      {"name": "Serial2", "rx": 17, "tx": 16},
+      {"name": "Serial3", "rx": 15, "tx": 14}
+    ],
+    "i2c": {"sda": 20, "scl": 21},
+    "spi": {"mosi": 51, "miso": 50, "sck": 52, "ss": 53},
+    "power_pins": ["5V", "3V3", "VIN", "GND"],
+    "reserved_pins": {
+      "13": "Onboard LED, also the SPI SCK line",
+      "0": "USB serial RX; avoid unless the serial monitor is unused",
+      "1": "USB serial TX; avoid unless the serial monitor is unused"
+    }
+  },
+  "esp32": {
+    "display_name": "ESP32 DevKit",
+    "logic_voltage": 3.3,
+    "digital_pins": [
+      4, 5, 12, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33
+    ],
+    "pwm_pins": [4, 5, 12, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33],
+    "analog_pins": ["32", "33", "34", "35", "36", "39"],
+    "input_only_pins": [34, 35, 36, 39],
+    "uart": {"rx": 3, "tx": 1},
+    "additional_uart": [
+      {"name": "UART2", "rx": 16, "tx": 17}
+    ],
+    "i2c": {"sda": 21, "scl": 22},
+    "spi": {"mosi": 23, "miso": 19, "sck": 18, "ss": 5},
+    "power_pins": ["5V", "3V3", "GND"],
+    "reserved_pins": {
+      "0": "Boot-mode strapping pin; must be high at boot",
+      "2": "Boot-mode strapping pin; must be low or floating at boot",
+      "15": "Boot-mode strapping pin",
+      "1": "USB serial TX; avoid unless the serial monitor is unused",
+      "3": "USB serial RX; avoid unless the serial monitor is unused"
+    }
+  }
+}

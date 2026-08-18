@@ -18,9 +18,8 @@ the rendered preview separately.
 """
 
 
-async def create_robot_visualization_agent():
+async def build_agent():
     """Create the visualization agent with only OpenSCAD tools."""
-
 
     model = ChatGoogleGenerativeAI(
         model=settings.visualization_model,

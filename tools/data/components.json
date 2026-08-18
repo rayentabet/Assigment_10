@@ -1,0 +1,90 @@
+{
+  "hc-sr04": {
+    "display_name": "HC-SR04 Ultrasonic Distance Sensor",
+    "aliases": ["ultrasonic sensor", "distance sensor", "sr04", "sonar sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["TRIG", "ECHO"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "sg90": {
+    "display_name": "SG90 Micro Servo",
+    "aliases": ["servo", "servo motor", "micro servo"],
+    "voltage": 5.0,
+    "interface": "pwm",
+    "signal_pins": ["SIGNAL"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "l298n": {
+    "display_name": "L298N Dual H-Bridge Motor Driver",
+    "aliases": ["motor driver", "dual h-bridge", "l298n driver", "h-bridge"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["IN1", "IN2", "IN3", "IN4", "ENA", "ENB"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "mpu6050": {
+    "display_name": "MPU6050 Accelerometer/Gyroscope",
+    "aliases": ["imu", "accelerometer", "gyroscope", "gyro", "6-axis sensor"],
+    "voltage": 3.3,
+    "interface": "i2c",
+    "signal_pins": ["SDA", "SCL"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "ssd1306": {
+    "display_name": "SSD1306 OLED Display",
+    "aliases": ["oled", "oled display", "128x64 display", "small display"],
+    "voltage": 3.3,
+    "interface": "i2c",
+    "signal_pins": ["SDA", "SCL"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "dc_motor": {
+    "display_name": "Generic DC Motor (driven through a motor driver)",
+    "aliases": ["dc motor", "motor", "wheel motor"],
+    "voltage": 6.0,
+    "interface": "digital",
+    "signal_pins": ["IN_A", "IN_B"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "ir_sensor": {
+    "display_name": "IR Obstacle Avoidance Sensor",
+    "aliases": ["ir sensor", "obstacle sensor", "infrared sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["OUT"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "ldr": {
+    "display_name": "LDR / Photoresistor Module",
+    "aliases": ["ldr", "light sensor", "photoresistor"],
+    "voltage": 5.0,
+    "interface": "analog",
+    "signal_pins": ["AO"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "button": {
+    "display_name": "Push Button",
+    "aliases": ["push button", "pushbutton", "switch"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["SIGNAL"],
+    "power_pins_needed": ["GND"]
+  },
+  "led": {
+    "display_name": "LED",
+    "aliases": ["led", "light emitting diode", "indicator light"],
+    "voltage": 2.0,
+    "interface": "digital",
+    "signal_pins": ["ANODE"],
+    "power_pins_needed": ["GND"]
+  },
+  "sd_card_module": {
+    "display_name": "Micro SD Card Module",
+    "aliases": ["sd card", "sd card module", "micro sd module", "sd module"],
+    "voltage": 5.0,
+    "interface": "spi",
+    "signal_pins": ["MOSI", "MISO", "SCK", "CS"],
+    "power_pins_needed": ["VCC", "GND"]
+  }
+}

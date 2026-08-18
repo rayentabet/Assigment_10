@@ -20,7 +20,7 @@ reasoning, scratch work, or chain-of-thought.
 """
 
 
-async def create_coding_agent():
+async def build_agent():
     """Create the coding agent with only its allowed tools."""
 
     model = ChatGroq(model=settings.code_model, temperature=0)

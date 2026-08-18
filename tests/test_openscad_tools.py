@@ -17,9 +17,7 @@ def test_save_and_render_openscad(tmp_path: Path, monkeypatch) -> None:
     saved = openscad_tools.save_openscad.invoke(
         {"model_name": "test robot", "code": "cube([20, 10, 5]);\n"}
     )
-    result = openscad_tools.render_openscad.invoke(
-        {"model_path": saved["model_path"]}
-    )
+    result = openscad_tools.render_openscad.invoke({"model_path": saved["model_path"]})
 
     assert Path(saved["model_path"]).is_file()
     assert result["success"] is True

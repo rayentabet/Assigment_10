@@ -9,7 +9,7 @@ CODE_FOLDER = PROJECT_FOLDER / "generated" / "code"
 ALLOWED_EXTENSIONS = {".py", ".ino", ".cpp", ".h", ".js", ".txt"}
 
 
-def get_code_path(filename: str) -> Path:
+def code_path(filename: str) -> Path:
     """Return a safe path inside generated/code."""
 
     if Path(filename).name != filename:
@@ -26,7 +26,7 @@ def get_code_path(filename: str) -> Path:
 def save_code(filename: str, code: str) -> dict:
     """Save code. Provide a plain filename with extension and the complete code text."""
 
-    path = get_code_path(filename)
+    path = code_path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(code, encoding="utf-8")
 
@@ -37,7 +37,7 @@ def save_code(filename: str, code: str) -> dict:
 def validate_code(filename: str) -> dict:
     """Validate a saved file using the exact plain filename passed to save_code."""
 
-    path = get_code_path(filename)
+    path = code_path(filename)
     if not path.is_file():
         return {"valid": False, "errors": ["File not found."]}
 

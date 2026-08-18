@@ -1,0 +1,43 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	input_guardrail(input_guardrail)
+	supervisor(supervisor)
+	human_approval(human_approval)
+	component_manager(component_manager)
+	purchase_approval_node(purchase_approval_node)
+	finalizer(finalizer)
+	rag_agent(rag_agent)
+	coding_agent(coding_agent)
+	wiring_agent(wiring_agent)
+	robot_visualization_agent(robot_visualization_agent)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> input_guardrail;
+	coding_agent --> supervisor;
+	component_manager -. &nbsp;purchase_approval&nbsp; .-> purchase_approval_node;
+	component_manager -.-> supervisor;
+	finalizer --> __end__;
+	human_approval -.-> coding_agent;
+	human_approval -. &nbsp;FINISH&nbsp; .-> finalizer;
+	human_approval -.-> robot_visualization_agent;
+	input_guardrail -. &nbsp;blocked&nbsp; .-> __end__;
+	input_guardrail -. &nbsp;continue&nbsp; .-> supervisor;
+	purchase_approval_node -.-> component_manager;
+	purchase_approval_node -. &nbsp;FINISH&nbsp; .-> finalizer;
+	rag_agent --> supervisor;
+	robot_visualization_agent --> supervisor;
+	supervisor -.-> coding_agent;
+	supervisor -.-> component_manager;
+	supervisor -. &nbsp;FINISH&nbsp; .-> finalizer;
+	supervisor -.-> human_approval;
+	supervisor -.-> rag_agent;
+	supervisor -.-> robot_visualization_agent;
+	supervisor -.-> wiring_agent;
+	wiring_agent --> supervisor;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

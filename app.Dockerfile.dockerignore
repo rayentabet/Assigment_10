@@ -1,0 +1,27 @@
+# Scoped to app.Dockerfile's build context (Assignment_10/). Docker's build-kit
+# looks for "<dockerfile-name>.dockerignore" first, so this only affects that
+# build, not the mcp-server one (Dockerfile.dockerignore) or component_manager's.
+.venv
+venv
+node_modules
+web
+component_manager
+mcp_server/data
+data
+generated
+evaluation
+docs
+tests
+scripts
+.git
+.claude
+certs
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+**/.pytest_cache
+**/.ruff_cache
+**/*.sqlite
+.env
+.env.*
+!.env.example
