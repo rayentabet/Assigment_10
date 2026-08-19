@@ -4,7 +4,6 @@ from google.adk.agents import Agent
 
 from component_manager.config import settings
 from component_manager.tools import (
-    check_component_availability,
     create_digikey_proposal,
     get_digikey_order,
     place_digikey_order,
@@ -12,10 +11,9 @@ from component_manager.tools import (
 )
 
 INSTRUCTION = """You are the read-only Component Manager for robotics parts.
-First check local inventory when the request names one of our known component
-IDs. If the requested quantity is unavailable, search DigiKey for the needed
-component. Compare the returned offers yourself and recommend the best suitable
-option using only tool data. Prefer an exact technical match that is in stock;
+Search DigiKey for the requested component. Compare the returned offers yourself
+and recommend the best suitable option using only tool data. Prefer an exact
+technical match that is in stock;
 use price as the tie-breaker. Clearly distinguish the requested component from
 an alternative and mention compatibility uncertainties. Return the chosen
 product card and up to four other useful offers. A recommendation or group of
@@ -40,7 +38,6 @@ root_agent = Agent(
     model=settings.component_manager_model,
     instruction=INSTRUCTION,
     tools=[
-        check_component_availability,
         search_digikey,
         create_digikey_proposal,
         place_digikey_order,

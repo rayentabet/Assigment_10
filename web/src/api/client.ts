@@ -10,6 +10,7 @@ import type {
   ThreadHistoryResponse,
   ThreadListResponse,
   ThreadResponse,
+  TranscriptionResponse,
 } from "./types";
 
 export const API_BASE_URL = (
@@ -67,6 +68,38 @@ export function deleteThread(threadId: string): Promise<void> {
 
 export function sendMessage(threadId: string, message: string): Promise<ChatResponse> {
   return request<ChatResponse>("POST", `/threads/${threadId}/messages`, { message });
+}
+
+export async function transcribeAudio(
+  threadId: string,
+  audio: Blob,
+  filename: string,
+): Promise<TranscriptionResponse> {
+  // Multipart upload, so this bypasses request()'s JSON-only body handling.
+  const form = new FormData();
+  form.append("audio", audio, filename);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/threads/${threadId}/transcribe`, {
+      method: "POST",
+      body: form,
+    });
+  } catch {
+    throw new Error(`Cannot connect to the API at ${API_BASE_URL}. Start FastAPI first.`);
+  }
+
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const payload = await response.json();
+      detail = payload.detail ?? detail;
+    } catch {
+      // Non-JSON error body; fall back to statusText.
+    }
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+  }
+  return (await response.json()) as TranscriptionResponse;
 }
 
 export function resumeThread(

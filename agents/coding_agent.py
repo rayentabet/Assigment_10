@@ -1,12 +1,13 @@
 """Coding specialist."""
 
 from langchain.agents import create_agent
-from langchain_groq import ChatGroq
 
-from app.config import settings
+from app.models import code_model
 from tools.code_tools import save_code, validate_code
 
-CODING_PROMPT = """You are the coding specialist.
+CODING_PROMPT = """You are the robotics coding specialist: Arduino/embedded C++ and
+scripts that read or control hardware for this robotics project. The supervisor only
+routes in-scope requests here, so treat the task you're given as in-scope.
 Write simple and readable code.
 If the user only asks for an explanation, review, or why existing code fails,
 answer directly and do not call any tool.
@@ -23,9 +24,8 @@ reasoning, scratch work, or chain-of-thought.
 async def build_agent():
     """Create the coding agent with only its allowed tools."""
 
-    model = ChatGroq(model=settings.code_model, temperature=0)
     return create_agent(
-        model=model,
+        model=code_model(),
         tools=[save_code, validate_code],
         system_prompt=CODING_PROMPT,
     )

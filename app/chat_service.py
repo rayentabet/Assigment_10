@@ -3,15 +3,19 @@
 import asyncio
 import hashlib
 import json
+import logging
 from uuid import uuid4
 
 import aiosqlite
+from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.types import Command
 
 from app.config import settings
 from app.graph import build_graph, new_state
-from app.helpers import valid_image
+from app.helpers import to_text, valid_image
+
+logger = logging.getLogger(__name__)
 
 _connection: aiosqlite.Connection | None = None
 _checkpointer: AsyncSqliteSaver | None = None
@@ -40,6 +44,7 @@ async def initialize() -> None:
             """
             CREATE TABLE IF NOT EXISTS chat_threads (
                 thread_id TEXT PRIMARY KEY,
+                title TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -88,6 +93,11 @@ async def initialize() -> None:
             );
             """
         )
+        columns = await _connection.execute("PRAGMA table_info(chat_threads)")
+        column_names = {row[1] for row in await columns.fetchall()}
+        await columns.close()
+        if "title" not in column_names:
+            await _connection.execute("ALTER TABLE chat_threads ADD COLUMN title TEXT")
         await _connection.commit()
         _graph = build_graph(checkpointer=_checkpointer)
 
@@ -121,6 +131,8 @@ async def send_message(user_input: str, thread_id: str | None = None) -> dict:
         await save_project(thread_id, result["project"])
     if result.get("final_answer") and not result.get("__interrupt__"):
         await _save_message(thread_id, "assistant", result["final_answer"])
+        if not result.get("input_blocked"):
+            await _maybe_generate_title(thread_id, result["final_answer"])
         await register_artifacts(thread_id, result.get("image_paths", []))
         project = result.get("project", {})
         if project.get("wiring"):
@@ -152,6 +164,8 @@ async def resume_thread(
         await save_project(thread_id, result["project"])
     if result.get("final_answer") and not result.get("__interrupt__"):
         await _save_message(thread_id, "assistant", result["final_answer"])
+        if not result.get("input_blocked"):
+            await _maybe_generate_title(thread_id, result["final_answer"])
         await register_artifacts(thread_id, result.get("image_paths", []))
         project = result.get("project", {})
         if project.get("wiring"):
@@ -212,7 +226,7 @@ async def get_history(thread_id: str) -> list[dict[str, str]] | None:
 
 
 async def list_threads(limit: int = 50) -> list[dict[str, str]]:
-    """List conversations, using the first user message as a short title."""
+    """List conversations, preferring the generated title over the raw first message."""
 
     await initialize()
     cursor = await _connection.execute(
@@ -220,6 +234,7 @@ async def list_threads(limit: int = 50) -> list[dict[str, str]]:
         SELECT
             t.thread_id,
             COALESCE(
+                t.title,
                 (
                     SELECT SUBSTR(first_message.content, 1, 60)
                     FROM chat_messages AS first_message
@@ -460,5 +475,66 @@ async def _save_message(thread_id: str, role: str, content: str) -> None:
         VALUES (?, ?, ?)
         """,
         (thread_id, role, content),
+    )
+    await _connection.commit()
+
+
+async def _maybe_generate_title(thread_id: str, answer: str) -> None:
+    """Set a short LLM-generated title the first time a thread gets a reply.
+
+    No-ops once a title is already stored, so this only ever costs one model
+    call per thread. Falls back to the truncated first message on any
+    failure (missing key, provider outage after the OpenRouter fallback), so a
+    broken title generation never blocks the chat response itself.
+    """
+
+    cursor = await _connection.execute(
+        "SELECT title FROM chat_threads WHERE thread_id = ?",
+        (thread_id,),
+    )
+    row = await cursor.fetchone()
+    await cursor.close()
+    if row is None or row[0] is not None:
+        return
+
+    cursor = await _connection.execute(
+        """
+        SELECT content FROM chat_messages
+        WHERE thread_id = ? AND role = 'user'
+        ORDER BY id ASC
+        LIMIT 1
+        """,
+        (thread_id,),
+    )
+    first_message = await cursor.fetchone()
+    await cursor.close()
+    user_input = first_message[0] if first_message else ""
+
+    title = None
+    try:
+        from app.models import title_model
+
+        response = await title_model().ainvoke(
+            [
+                HumanMessage(
+                    content=(
+                        "Write a short chat title (max 6 words, no quotes, no "
+                        "trailing punctuation) summarizing this exchange.\n\n"
+                        f"User: {user_input}\nAssistant: {answer}"
+                    )
+                )
+            ]
+        )
+        title = to_text(response.content).strip().strip('"').strip() or None
+    except Exception:
+        logger.exception("Title generation failed for thread %s", thread_id)
+        title = None
+
+    if not title:
+        title = user_input.strip()[:60] or "New conversation"
+
+    await _connection.execute(
+        "UPDATE chat_threads SET title = ? WHERE thread_id = ?",
+        (title[:80], thread_id),
     )
     await _connection.commit()

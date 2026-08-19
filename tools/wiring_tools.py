@@ -105,6 +105,18 @@ def _allocate_component(board: dict, component: dict, used: dict) -> tuple[dict 
     reserved = {
         int(pin) if pin.lstrip("-").isdigit() else pin for pin in board.get("reserved_pins", {})
     }
+    # On boards where the I2C/SPI bus pins double as ordinary digital/PWM pins
+    # (e.g. ESP32's SDA=21/SCL=22, both also in digital_pins), a plain digital
+    # or PWM allocation must not silently hand those out from under the bus.
+    # SS/CS is excluded: it is per-device and not a shared bus line, matching
+    # _used_pins()'s treatment.
+    shared_bus_pins = {
+        board["i2c"]["sda"],
+        board["i2c"]["scl"],
+        board["spi"]["mosi"],
+        board["spi"]["miso"],
+        board["spi"]["sck"],
+    }
 
     for pin_name in component["signal_pins"]:
         upper = pin_name.upper()
@@ -118,8 +130,13 @@ def _allocate_component(board: dict, component: dict, used: dict) -> tuple[dict 
             assigned[pin_name] = board["spi"]["miso"]
         elif interface == "spi" and upper == "SCK":
             assigned[pin_name] = board["spi"]["sck"]
+        elif interface == "uart" and upper == "TX":
+            # Cross-wired: the component's TX carries data into the board's RX.
+            assigned[pin_name] = board["uart"]["rx"]
+        elif interface == "uart" and upper == "RX":
+            assigned[pin_name] = board["uart"]["tx"]
         elif interface == "pwm":
-            pin = _take_pin(board["pwm_pins"], used["digital"], reserved)
+            pin = _take_pin(board["pwm_pins"], used["digital"], reserved | shared_bus_pins)
             if pin is None:
                 return None, f"No free PWM pin available for {pin_name}"
             assigned[pin_name] = pin
@@ -130,7 +147,9 @@ def _allocate_component(board: dict, component: dict, used: dict) -> tuple[dict 
             assigned[pin_name] = pin
         else:
             input_only = set(board.get("input_only_pins", []))
-            pin = _take_pin(board["digital_pins"], used["digital"], reserved | input_only)
+            pin = _take_pin(
+                board["digital_pins"], used["digital"], reserved | input_only | shared_bus_pins
+            )
             if pin is None:
                 return None, f"No free digital pin available for {pin_name}"
             assigned[pin_name] = pin

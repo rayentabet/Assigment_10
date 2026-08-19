@@ -86,5 +86,325 @@
     "interface": "spi",
     "signal_pins": ["MOSI", "MISO", "SCK", "CS"],
     "power_pins_needed": ["VCC", "GND"]
+  },
+  "dht11": {
+    "display_name": "DHT11 Temperature/Humidity Sensor",
+    "aliases": ["dht11", "temperature sensor", "humidity sensor", "temp sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["DATA"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "dht22": {
+    "display_name": "DHT22 Temperature/Humidity Sensor",
+    "aliases": ["dht22", "am2302", "precision temperature sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["DATA"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "ds18b20": {
+    "display_name": "DS18B20 1-Wire Temperature Probe",
+    "aliases": ["ds18b20", "waterproof temperature sensor", "1-wire temp sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["DATA"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "pir_sensor": {
+    "display_name": "HC-SR501 PIR Motion Sensor",
+    "aliases": ["pir sensor", "motion sensor", "hc-sr501", "passive infrared sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["OUT"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "soil_moisture_sensor": {
+    "display_name": "Soil Moisture Sensor",
+    "aliases": ["soil moisture sensor", "soil sensor", "moisture sensor"],
+    "voltage": 5.0,
+    "interface": "analog",
+    "signal_pins": ["AO"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "rain_sensor": {
+    "display_name": "Rain Drop Sensor Module",
+    "aliases": ["rain sensor", "rain drop sensor", "raindrop module"],
+    "voltage": 5.0,
+    "interface": "analog",
+    "signal_pins": ["AO"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "flame_sensor": {
+    "display_name": "Flame Sensor Module",
+    "aliases": ["flame sensor", "fire sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["DO"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "mq2_gas_sensor": {
+    "display_name": "MQ-2 Gas/Smoke Sensor",
+    "aliases": ["mq2", "mq-2", "gas sensor", "smoke sensor"],
+    "voltage": 5.0,
+    "interface": "analog",
+    "signal_pins": ["AO"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "sound_sensor": {
+    "display_name": "KY-038 Sound Detection Sensor",
+    "aliases": ["sound sensor", "microphone module", "ky-038", "mic sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["DO"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "hall_sensor": {
+    "display_name": "Hall Effect Sensor",
+    "aliases": ["hall sensor", "hall effect sensor", "magnetic sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["OUT"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "tilt_sensor": {
+    "display_name": "Tilt/Vibration Switch",
+    "aliases": ["tilt sensor", "tilt switch", "vibration switch"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["SIGNAL"],
+    "power_pins_needed": ["GND"]
+  },
+  "water_level_sensor": {
+    "display_name": "Water Level Sensor",
+    "aliases": ["water level sensor", "liquid level sensor"],
+    "voltage": 5.0,
+    "interface": "analog",
+    "signal_pins": ["AO"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "load_cell_hx711": {
+    "display_name": "HX711 Load Cell Amplifier",
+    "aliases": ["load cell", "hx711", "weight sensor", "scale sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["DT", "SCK"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "current_sensor_acs712": {
+    "display_name": "ACS712 Current Sensor",
+    "aliases": ["current sensor", "acs712", "amp sensor"],
+    "voltage": 5.0,
+    "interface": "analog",
+    "signal_pins": ["OUT"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "color_sensor_tcs3200": {
+    "display_name": "TCS3200 Color Sensor",
+    "aliases": ["color sensor", "tcs3200", "rgb sensor"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["S0", "S1", "S2", "S3", "OUT"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "ir_receiver": {
+    "display_name": "IR Remote Receiver (VS1838B)",
+    "aliases": ["ir receiver", "infrared receiver", "remote receiver", "vs1838b"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["OUT"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "rfid_rc522": {
+    "display_name": "RC522 RFID Reader",
+    "aliases": ["rfid reader", "rc522", "rfid module", "nfc reader"],
+    "voltage": 3.3,
+    "interface": "spi",
+    "signal_pins": ["MOSI", "MISO", "SCK", "SDA", "RST"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "gps_neo6m": {
+    "display_name": "NEO-6M GPS Module",
+    "aliases": ["gps module", "neo-6m", "gps sensor", "gps receiver"],
+    "voltage": 5.0,
+    "interface": "uart",
+    "signal_pins": ["RX", "TX"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "bluetooth_hc05": {
+    "display_name": "HC-05 Bluetooth Module",
+    "aliases": ["bluetooth module", "hc-05", "hc05", "bluetooth serial"],
+    "voltage": 5.0,
+    "interface": "uart",
+    "signal_pins": ["RX", "TX"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "sim800l_gsm": {
+    "display_name": "SIM800L GSM/GPRS Module",
+    "aliases": ["gsm module", "sim800l", "cellular module", "gprs module"],
+    "voltage": 4.0,
+    "interface": "uart",
+    "signal_pins": ["RX", "TX"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "esp8266_wifi_module": {
+    "display_name": "ESP8266 Serial WiFi Module (ESP-01)",
+    "aliases": ["wifi module", "esp8266", "esp-01", "esp01"],
+    "voltage": 3.3,
+    "interface": "uart",
+    "signal_pins": ["RX", "TX"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "nrf24l01": {
+    "display_name": "NRF24L01 2.4GHz Radio Module",
+    "aliases": ["nrf24l01", "radio module", "2.4ghz transceiver"],
+    "voltage": 3.3,
+    "interface": "spi",
+    "signal_pins": ["MOSI", "MISO", "SCK", "CSN", "CE"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "stepper_28byj48": {
+    "display_name": "28BYJ-48 Stepper Motor with ULN2003 Driver",
+    "aliases": ["stepper motor", "28byj-48", "uln2003", "stepper"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["IN1", "IN2", "IN3", "IN4"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "relay_module": {
+    "display_name": "1-Channel Relay Module",
+    "aliases": ["relay", "relay module", "relay switch"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["IN"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "solenoid_valve": {
+    "display_name": "12V Solenoid Valve (via driver)",
+    "aliases": ["solenoid valve", "solenoid", "water valve"],
+    "voltage": 12.0,
+    "interface": "digital",
+    "signal_pins": ["IN"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "buzzer": {
+    "display_name": "Piezo Buzzer",
+    "aliases": ["buzzer", "piezo buzzer", "piezo speaker", "alarm buzzer"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["SIGNAL"],
+    "power_pins_needed": ["GND"]
+  },
+  "vibration_motor": {
+    "display_name": "Coin Vibration Motor",
+    "aliases": ["vibration motor", "vibrator", "coin motor"],
+    "voltage": 3.0,
+    "interface": "pwm",
+    "signal_pins": ["SIGNAL"],
+    "power_pins_needed": ["GND"]
+  },
+  "lcd1602_i2c": {
+    "display_name": "16x2 LCD Display (I2C Backpack)",
+    "aliases": ["lcd", "lcd display", "16x2 lcd", "lcd1602", "character display"],
+    "voltage": 5.0,
+    "interface": "i2c",
+    "signal_pins": ["SDA", "SCL"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "seven_segment_display": {
+    "display_name": "7-Segment Display",
+    "aliases": ["seven segment display", "7-segment display", "digit display"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["A", "B", "C", "D", "E", "F", "G", "DP"],
+    "power_pins_needed": ["GND"]
+  },
+  "ws2812_neopixel": {
+    "display_name": "WS2812 Addressable RGB LED (NeoPixel)",
+    "aliases": ["neopixel", "ws2812", "addressable led", "rgb led strip"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["DIN"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "potentiometer": {
+    "display_name": "Potentiometer",
+    "aliases": ["potentiometer", "pot", "trim pot", "variable resistor"],
+    "voltage": 5.0,
+    "interface": "analog",
+    "signal_pins": ["WIPER"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "rgb_led": {
+    "display_name": "RGB LED",
+    "aliases": ["rgb led", "tri-color led", "color led"],
+    "voltage": 2.2,
+    "interface": "pwm",
+    "signal_pins": ["R", "G", "B"],
+    "power_pins_needed": ["GND"]
+  },
+  "keypad_4x4": {
+    "display_name": "4x4 Matrix Keypad",
+    "aliases": ["keypad", "4x4 keypad", "matrix keypad", "membrane keypad"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["R1", "R2", "R3", "R4", "C1", "C2", "C3", "C4"],
+    "power_pins_needed": []
+  },
+  "rotary_encoder": {
+    "display_name": "Rotary Encoder",
+    "aliases": ["rotary encoder", "encoder", "rotary switch"],
+    "voltage": 5.0,
+    "interface": "digital",
+    "signal_pins": ["CLK", "DT", "SW"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "rtc_ds3231": {
+    "display_name": "DS3231 Real-Time Clock Module",
+    "aliases": ["rtc", "ds3231", "real-time clock", "clock module"],
+    "voltage": 3.3,
+    "interface": "i2c",
+    "signal_pins": ["SDA", "SCL"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "eeprom_24lc256": {
+    "display_name": "24LC256 EEPROM Module",
+    "aliases": ["eeprom", "24lc256", "external memory"],
+    "voltage": 5.0,
+    "interface": "i2c",
+    "signal_pins": ["SDA", "SCL"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "thermistor": {
+    "display_name": "NTC Thermistor",
+    "aliases": ["thermistor", "ntc thermistor", "ntc sensor"],
+    "voltage": 5.0,
+    "interface": "analog",
+    "signal_pins": ["AO"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "touch_sensor_ttp223": {
+    "display_name": "TTP223 Capacitive Touch Sensor",
+    "aliases": ["touch sensor", "ttp223", "capacitive touch sensor", "touch button"],
+    "voltage": 3.3,
+    "interface": "digital",
+    "signal_pins": ["SIG"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "barometric_bmp280": {
+    "display_name": "BMP280 Barometric Pressure Sensor",
+    "aliases": ["bmp280", "barometric sensor", "pressure sensor", "altitude sensor"],
+    "voltage": 3.3,
+    "interface": "i2c",
+    "signal_pins": ["SDA", "SCL"],
+    "power_pins_needed": ["VCC", "GND"]
+  },
+  "mosfet_module": {
+    "display_name": "Logic-Level MOSFET Driver Module",
+    "aliases": ["mosfet", "mosfet module", "mosfet driver", "power mosfet"],
+    "voltage": 5.0,
+    "interface": "pwm",
+    "signal_pins": ["SIGNAL"],
+    "power_pins_needed": ["GND"]
   }
 }

@@ -3,9 +3,10 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Annotated
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Query, Response, status
+from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
@@ -20,6 +21,7 @@ from app.api.schemas import (
     ThreadHistoryResponse,
     ThreadListResponse,
     ThreadResponse,
+    TranscriptionResponse,
 )
 from app.chat_service import create_thread as register_thread
 from app.chat_service import (
@@ -41,6 +43,7 @@ from app.chat_service import (
 from app.config import settings
 from app.payment_vault import CredentialError, forget, tokenize
 from app.payment_vault import clear as clear_payment_vault
+from app.transcription import transcribe_audio
 from component_manager.oauth import (
     OAuthError,
     authorization_url,
@@ -225,6 +228,40 @@ async def get_messages(thread_id: str) -> ThreadHistoryResponse:
         purchase_reference=purchase_reference,
         product_cards=project.get("product_cards", []),
     )
+
+
+@app.post("/threads/{thread_id}/transcribe", response_model=TranscriptionResponse)
+async def transcribe_message(
+    thread_id: str, audio: Annotated[UploadFile, File()]
+) -> TranscriptionResponse:
+    """Transcribe a voice message with the local Whisper model.
+
+    Returns text only; the caller sends it to POST /threads/{id}/messages
+    like any typed message. Transcription itself never touches the graph.
+    """
+
+    if await get_history(thread_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Thread not found.",
+        )
+
+    audio_bytes = await audio.read()
+    try:
+        text = await transcribe_audio(audio_bytes)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+    except Exception as exc:
+        logger.exception("Transcription failed for thread %s", thread_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Transcription failed.",
+        ) from exc
+
+    return TranscriptionResponse(text=text)
 
 
 @app.get("/artifacts/{artifact_id}", response_class=FileResponse)

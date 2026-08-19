@@ -3,9 +3,8 @@
 System B is an independent Google ADK agent. System A reaches it through A2A;
 it does not import System B or read its SQLite database.
 
-Its five tools are:
+Its four tools are:
 
-- `check_component_availability`: read local inventory.
 - `search_digikey`: search and rank real DigiKey Product Information V4 offers.
 - `create_digikey_proposal`: refresh an offer and create signed AP2 proposal evidence.
 - `place_digikey_order`: after human approval, submit exactly once to DigiKey Sandbox.
@@ -25,11 +24,9 @@ continues to use the OAuth-connected DigiKey account; the test card is not charg
 ## Run
 
 ```bash
-PYTHONPATH=. component_manager/.venv/bin/python -m component_manager.seed_data
 PYTHONPATH=. component_manager/.venv/bin/uvicorn component_manager.server:app --host 0.0.0.0 --port 8002
 ```
 
-The seed command creates only the shared component catalog and local inventory.
 Full setup, architecture, function descriptions, and request flow are documented
 in `docs/CODE_WALKTHROUGH.md`.
 
@@ -55,7 +52,7 @@ curl -X POST localhost:8003/threads
 # Send a message, get one JSON reply
 curl -X POST localhost:8003/threads/<thread_id>/messages \
   -H 'Content-Type: application/json' \
-  -d '{"message": "Do we have hc-sr04 in stock?"}'
+  -d '{"message": "Search DigiKey for an hc-sr04"}'
 
 # Send a message and stream text/tool-call/tool-result events live
 curl -N -X POST localhost:8003/threads/<thread_id>/messages/stream \

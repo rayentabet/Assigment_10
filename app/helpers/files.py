@@ -10,7 +10,7 @@ def valid_image(raw_path: str) -> Path | None:
 
     path = Path(raw_path).resolve()
     roots = [settings.generated_directory.resolve(), settings.rag_project_path.resolve()]
-    if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+    if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".svg"}:
         return None
     if not path.is_file() or not any(path.is_relative_to(root) for root in roots):
         return None

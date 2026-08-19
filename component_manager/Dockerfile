@@ -8,11 +8,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY component_manager/requirements.txt component_manager/requirements.txt
-RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir -r component_manager/requirements.txt
 
-# catalog.py reads tools/data/components.json to share component identities
-# with the Wiring Agent, so both must keep the same relative layout.
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir -r component_manager/requirements.txt \
+    && apt-get purge -y --auto-remove git \
+    && rm -rf /var/lib/apt/lists/*
+
+
 COPY tools/data tools/data
 COPY component_manager component_manager
 

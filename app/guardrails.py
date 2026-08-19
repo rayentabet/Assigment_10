@@ -4,14 +4,14 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from langchain_groq import ChatGroq
 from nemoguardrails import LLMRails, RailsConfig
 from nemoguardrails.rails.llm.options import RailType
 
-from app.config import settings
+from app.models import guardrail_model
 
 GUARDRAILS_CONFIG = Path(__file__).parents[1] / "guardrails"
 BLOCKED_MESSAGE = "I can't help with that request."
+BLOCKED_OUTPUT_MESSAGE = "I can't share that response."
 
 SENSITIVE_PATTERNS = {
     "EMAIL_ADDRESS": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
@@ -43,8 +43,7 @@ def get_guardrails() -> LLMRails:
     """Load the NeMo configuration once and reuse it."""
 
     config = RailsConfig.from_path(str(GUARDRAILS_CONFIG))
-    safety_model = ChatGroq(model=settings.guardrail_model, temperature=0)
-    rails = LLMRails(config=config, llm=safety_model)
+    rails = LLMRails(config=config, llm=guardrail_model())
     rails.register_action(mask_data, name="mask_sensitive_data")
     return rails
 
@@ -67,4 +66,25 @@ async def check_input(user_input: str) -> str | None:
     if _is_blocked(result):
         return None
     return result.content or masked_input
+
+
+async def check_output(user_input: str, bot_response: str) -> str | None:
+    """Mask sensitive data in the final answer and block unsafe responses.
+
+    Runs the `self check output` / `mask sensitive data on output` flows
+    declared in guardrails/config.yml against the specialist-produced final
+    answer, the same way check_input() runs the input flows against the raw
+    user message.
+    """
+
+    result = await get_guardrails().check_async(
+        [
+            {"role": "user", "content": user_input},
+            {"role": "assistant", "content": bot_response},
+        ],
+        rail_types=[RailType.OUTPUT],
+    )
+    if _is_blocked(result):
+        return None
+    return result.content or bot_response
 

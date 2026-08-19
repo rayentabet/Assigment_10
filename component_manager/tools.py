@@ -8,41 +8,12 @@ holds even if the model misbehaves.
 """
 
 from component_manager.config import settings
-from component_manager.db import get_db
 from component_manager.digikey import DigiKeyError, normalize_product, rank_products
 from component_manager.digikey import client as digikey_client
 from component_manager.purchasing import PurchaseError
 from component_manager.purchasing import create_proposal as create_digikey_purchase
 from component_manager.purchasing import order_status as read_digikey_order
 from component_manager.purchasing import place_order as submit_digikey_order
-
-
-async def check_component_availability(component_id: str) -> dict:
-    """Return inventory quantity, reservations, location, and status for a component.
-
-    Args:
-        component_id: The catalog identifier of the component, e.g. "hc-sr04".
-    """
-
-    db = await get_db()
-    component = await db.get_component(component_id)
-    if component is None:
-        return {"found": False, "error": f"Unknown component: {component_id}"}
-
-    inventory = await db.get_inventory(component_id)
-    if inventory is None:
-        return {"found": False, "error": f"No inventory record for {component_id}"}
-
-    return {
-        "found": True,
-        "component_id": component_id,
-        "name": component["name"],
-        "quantity_on_hand": inventory["quantity_on_hand"],
-        "quantity_reserved": inventory["quantity_reserved"],
-        "quantity_available": inventory["quantity_on_hand"] - inventory["quantity_reserved"],
-        "location": inventory["location"],
-        "status": inventory["status"],
-    }
 
 
 async def search_digikey(query: str, quantity: int = 1, limit: int = 5) -> dict:

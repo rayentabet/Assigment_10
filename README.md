@@ -5,7 +5,7 @@ This project coordinates four robotics specialists through a LangGraph superviso
 - an MCP-backed robotics RAG agent;
 - a code generation and validation agent;
 - a wiring and pin management agent;
-- an OpenSCAD robot visualization agent.
+- a 3D robot visualization agent (build123d, no external CAD binary).
 
 For inventory, pricing, and purchasing, the supervisor routes directly to a
 dedicated A2A relay node. That node contacts the independent Google ADK
@@ -23,7 +23,6 @@ is no other coupling to that service's code or database.
 ## Prerequisites
 
 - Python 3.11 or newer
-- OpenSCAD available as `openscad`
 - Qdrant and the existing Assignment 8 RAG dependencies
 
 ## Initial setup
@@ -49,15 +48,15 @@ openssl rand -hex 32
 ## Development order
 
 1. Test the RAG tools in `mcp_server/server.py`.
-2. Implement restricted code and OpenSCAD tools.
+2. Implement restricted code and 3D model tools.
 3. Implement each specialist independently.
 4. Assemble the supervisor graph.
 5. Run the evaluation suite and document routing failures.
 
 ## Generated files
 
-Code is confined to `generated/code/`. OpenSCAD source and PNG previews are
-confined to `generated/robots/<model-name>/`.
+Code is confined to `generated/code/`. Model JSON and its SVG and PNG previews
+are confined to `generated/robots/<model-name>/`.
 
 ## Documentation
 
@@ -91,7 +90,7 @@ Open the saved runs in Streamlit:
 
 The `human_approval` graph node pauses before `coding_agent` or
 `robot_visualization_agent` runs, because those specialists can write generated
-files or start an expensive OpenSCAD render. The CLI shows the pending action and
+files or start a 3D render. The CLI shows the pending action and
 resumes the same checkpointed thread with `Command(resume={"approved": ...})`.
 
 Try it with:
@@ -100,7 +99,7 @@ Try it with:
 PYTHONPATH=. .venv/bin/python -m app.cli
 ```
 
-Enter `Create an OpenSCAD model of a two-wheeled robot`. At the approval prompt,
+Enter `Create a 3D model of a two-wheeled robot`. At the approval prompt,
 answer `n` to verify cancellation, then run it again and answer `y` to continue.
 Read-only routes such as `Explain how an ultrasonic sensor works` do not pause.
 

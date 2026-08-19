@@ -9,26 +9,6 @@ import aiosqlite
 from component_manager.config import settings
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS components (
-    component_id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    category TEXT NOT NULL,
-    voltage REAL NOT NULL,
-    interface TEXT NOT NULL,
-    pin_count INTEGER NOT NULL DEFAULT 0,
-    description TEXT NOT NULL DEFAULT ''
-);
-
-CREATE TABLE IF NOT EXISTS inventory (
-    component_id TEXT PRIMARY KEY,
-    quantity_on_hand INTEGER NOT NULL DEFAULT 0,
-    quantity_reserved INTEGER NOT NULL DEFAULT 0,
-    location TEXT NOT NULL DEFAULT 'main-warehouse',
-    status TEXT NOT NULL DEFAULT 'active',
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (component_id) REFERENCES components(component_id)
-);
-
 CREATE TABLE IF NOT EXISTS oauth_states (
     state_hash TEXT PRIMARY KEY,
     expires_at INTEGER NOT NULL,
@@ -111,50 +91,6 @@ class ComponentDB:
         rows = await cursor.fetchall()
         await cursor.close()
         return [dict(row) for row in rows]
-
-    # -- catalog seeding -------------------------------------------------
-
-    async def upsert_component(self, **fields: Any) -> None:
-        await self.connection.execute(
-            """
-            INSERT INTO components (
-                component_id, name, category, voltage, interface, pin_count, description
-            )
-            VALUES (
-                :component_id, :name, :category, :voltage, :interface, :pin_count, :description
-            )
-            ON CONFLICT(component_id) DO UPDATE SET
-                name = excluded.name, category = excluded.category, voltage = excluded.voltage,
-                interface = excluded.interface, pin_count = excluded.pin_count,
-                description = excluded.description
-            """,
-            fields,
-        )
-        await self.connection.commit()
-
-    async def upsert_inventory(self, component_id: str, quantity_on_hand: int) -> None:
-        await self.connection.execute(
-            """
-            INSERT INTO inventory (component_id, quantity_on_hand)
-            VALUES (?, ?)
-            ON CONFLICT(component_id) DO UPDATE SET
-                quantity_on_hand = excluded.quantity_on_hand, updated_at = CURRENT_TIMESTAMP
-            """,
-            (component_id, quantity_on_hand),
-        )
-        await self.connection.commit()
-
-    # -- reads -------------------------------------------------------------
-
-    async def get_component(self, component_id: str) -> dict | None:
-        return await self._fetch_one(
-            "SELECT * FROM components WHERE component_id = ?", (component_id,)
-        )
-
-    async def get_inventory(self, component_id: str) -> dict | None:
-        return await self._fetch_one(
-            "SELECT * FROM inventory WHERE component_id = ?", (component_id,)
-        )
 
     # -- OAuth ---------------------------------------------------------------
 

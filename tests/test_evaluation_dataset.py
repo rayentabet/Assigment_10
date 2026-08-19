@@ -8,16 +8,15 @@ DATASET = Path("evaluation/golden_dataset/v2/cases.jsonl")
 CURRENT_TOOLS = {
     "allocate_pins",
     "answer_question",
-    "check_component_availability",
     "create_digikey_proposal",
     "format_wiring_plan",
     "get_board",
     "get_component",
     "get_digikey_order",
     "place_digikey_order",
-    "render_openscad",
+    "render_model",
     "save_code",
-    "save_openscad",
+    "save_model",
     "search_digikey",
     "show_image",
     "validate_code",
@@ -25,6 +24,7 @@ CURRENT_TOOLS = {
 }
 RETIRED_TOOLS = {
     "cancel_order",
+    "check_component_availability",
     "create_purchase_proposal",
     "get_order_status",
     "place_order",
@@ -49,7 +49,7 @@ def test_v2_dataset_has_unique_valid_cases() -> None:
     cases = load_cases()
     ids = [case["id"] for case in cases]
 
-    assert len(cases) == 29
+    assert len(cases) == 28
     assert len(ids) == len(set(ids))
     assert all(("query" in case) ^ ("turns" in case) for case in cases)
     assert all(case.get("tags") for case in cases)
@@ -79,6 +79,6 @@ def test_side_effect_rejections_forbid_their_tools() -> None:
     assert {"save_code", "validate_code"} <= set(
         cases["coding_create_rejected"]["expected"]["tools"]["forbidden"]
     )
-    assert {"save_openscad", "render_openscad"} <= set(
+    assert {"save_model", "render_model"} <= set(
         cases["visualization_generic_robot_rejected"]["expected"]["tools"]["forbidden"]
     )

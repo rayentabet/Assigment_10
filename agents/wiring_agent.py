@@ -1,9 +1,8 @@
 """Wiring and pin management specialist."""
 
 from langchain.agents import create_agent
-from langchain_groq import ChatGroq
 
-from app.config import settings
+from app.models import wiring_model
 from tools.wiring_tools import (
     format_wiring_plan,
     get_board,
@@ -29,10 +28,9 @@ reasoning, scratch work, or chain-of-thought.
 async def build_agent(existing_assignments: dict | None = None):
     """Create the wiring agent with only its deterministic pin tools."""
 
-    model = ChatGroq(model=settings.wiring_model, temperature=0)
     allocate_pins = make_allocator(existing_assignments)
     return create_agent(
-        model=model,
+        model=wiring_model(),
         tools=[
             get_board,
             get_component,

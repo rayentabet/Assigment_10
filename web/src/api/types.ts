@@ -127,6 +127,10 @@ export interface ChatResponse {
   route_history: string[];
 }
 
+export interface TranscriptionResponse {
+  text: string;
+}
+
 export interface ThreadHistoryResponse {
   thread_id: string;
   messages: HistoryMessage[];

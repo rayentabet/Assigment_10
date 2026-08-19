@@ -185,3 +185,9 @@ class ThreadListResponse(BaseModel):
     """Recent conversations ordered by latest activity."""
 
     threads: list[ThreadSummary]
+
+
+class TranscriptionResponse(BaseModel):
+    """Text produced by the local Whisper model for one audio clip."""
+
+    text: str

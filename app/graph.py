@@ -1,13 +1,13 @@
 """LangGraph supervisor and specialist workflow."""
 
 import hashlib
+import logging
 from collections.abc import Awaitable, Callable
 from functools import partial
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypedDict
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_groq import ChatGroq
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.types import interrupt
@@ -33,6 +33,9 @@ from app.integrations.component_client import (
     last_argument,
     last_result,
 )
+from app.models import supervisor_model
+
+logger = logging.getLogger(__name__)
 
 VALID_ROUTES = {
     "rag_agent",
@@ -43,14 +46,20 @@ VALID_ROUTES = {
     "FINISH",
 }
 SAFE_FALLBACK_ROUTE = "FINISH"
-MAX_ATTEMPTS_PER_AGENT = 2
-# component_manager gets 3 attempts: propose + submit-after-approval
-# is the normal two-call happy path, plus one retry of headroom. Note the
-# propose -> approve -> submit hops are routed directly by
-# purchase_approval_node, not through choose_route, so this cap only ever
-# matters for supervisor-mediated re-routes to component_manager.
-MAX_ATTEMPTS_BY_AGENT: dict[str, int] = {"component_manager": 3}
 APPROVAL_REQUIRED_ROUTES = {"coding_agent", "robot_visualization_agent"}
+
+# Context compaction: once a thread's checkpointed message list grows past
+# this many raw (non-summary) messages, fold everything except the most
+# recent KEEP_RECENT_MESSAGES into one running SystemMessage. Reusing the
+# same message id lets the add_messages reducer replace the previous summary
+# in place instead of stacking a new one every time. Specialist prompts are
+# built fresh from completed_tasks/partial_results each turn and never read
+# this list, so compaction only bounds checkpoint storage and keeps the
+# supervisor's own messages[-8:] routing window meaningful over a long
+# thread instead of silently losing everything older with no trace.
+COMPACTION_THRESHOLD = 16
+KEEP_RECENT_MESSAGES = 8
+CONTEXT_SUMMARY_ID = "conversation_summary"
 
 AGENT_FACTORIES = {
     "rag_agent": build_rag,
@@ -75,8 +84,11 @@ Apply these rules in order and choose exactly one next_agent:
    the task as a plain instruction for a separate purchasing agent to act on
    directly (it has its own tools and makes its own decisions about which to call);
    do not try to decide which purchasing step to take yourself.
-3. coding_agent: the user asks to write, fix, debug, explain, or validate code, or
-   provides a code snippet. Arduino code still belongs here.
+3. coding_agent: the user asks to write, fix, debug, explain, or validate Arduino or
+   other robotics-hardware code (sensor/motor/firmware logic, embedded C/C++, or a
+   script that reads or controls hardware this assistant discusses). A code snippet
+   with no robotics/hardware connection (e.g. a generic Python/JS utility function
+   unrelated to any device) is out of scope; use FINISH (5c) instead.
 4. robot_visualization_agent: the user asks to create, show, render, preview, or model
    a robot in CAD, 3D, or OpenSCAD.
 5. rag_agent: the user asks a factual question about Arduino or physical robotics
@@ -103,6 +115,10 @@ Before routing, inspect the latest result:
 - Retry the same specialist only if its result is incomplete or reports an error.
 - Do not retry merely to improve wording.
 - For multi-part requests, route the next unfinished part to the right specialist.
+- If wiring_agent reports a component as not found in its catalog ("Unknown
+  component"), route to rag_agent next with a task to check documentation for
+  that part, instead of finishing on the wiring failure alone. Only FINISH
+  once rag_agent has also answered (found or not).
 
 Set requires_multiple_agents to true only when two or more different specialists are
 needed. Write a specific task; on retry, state exactly what must be corrected.
@@ -221,8 +237,7 @@ async def supervise(state: AgentState) -> dict:
             "final_answer": partial_answer(state),
         }
 
-    model = ChatGroq(model=settings.supervisor_model, temperature=0)
-    router = model.with_structured_output(
+    router = supervisor_model().with_structured_output(
         RouteDecision,
         method="json_schema",
         strict=True,
@@ -251,12 +266,23 @@ async def supervise(state: AgentState) -> dict:
         f"Current project: {project_context(state['project'])}"
     )
 
-    decision = await router.ainvoke(
-        [
-            SystemMessage(content=SUPERVISOR_PROMPT),
-            HumanMessage(content=routing_context),
-        ]
-    )
+    try:
+        decision = await router.ainvoke(
+            [
+                SystemMessage(content=SUPERVISOR_PROMPT),
+                HumanMessage(content=routing_context),
+            ]
+        )
+    except Exception:
+        # Primary model plus its OpenRouter fallback both failed. Degrade to
+        # whatever specialist work already completed instead of a 500 that
+        # loses it, same as hitting the iteration cap.
+        logger.exception("Supervisor routing failed for thread %s", state["thread_id"])
+        return {
+            "next_agent": "FINISH",
+            "final_answer": partial_answer(state, reason="Routing failed"),
+        }
+
     route = validate_route(decision.next_agent)
     task = decision.task
 
@@ -281,11 +307,16 @@ async def supervise(state: AgentState) -> dict:
 
 
 def choose_route(state: AgentState) -> str:
-    """Return only a validated graph edge."""
+    """Return only a validated graph edge.
+
+    No per-agent attempt cap: a specialist may be revisited any number of
+    times across a turn (bounded overall by settings.max_agent_iterations),
+    but never on two consecutive routes, so a confused supervisor cannot
+    ping-pong the same specialist in a tight loop.
+    """
 
     route = validate_route(state["next_agent"])
-    max_attempts = MAX_ATTEMPTS_BY_AGENT.get(route, MAX_ATTEMPTS_PER_AGENT)
-    if state["route_history"].count(route) >= max_attempts:
+    if state["route_history"] and state["route_history"][-1] == route:
         return "FINISH"
     return route
 
@@ -413,7 +444,33 @@ def approve_purchase(state: AgentState) -> dict:
 
 
 async def run_agent(state: AgentState, name: str, factory: Callable[..., Awaitable[Any]]) -> dict:
-    """Run one specialist and store its result."""
+    """Run one specialist, degrading to a structured error instead of raising.
+
+    An unhandled exception here (LLM outage after its OpenRouter fallback also
+    failed, a tool crash, an MCP disconnect) used to propagate all the way
+    through graph.ainvoke() to a bare 500 in the API, losing whatever other
+    specialists had already completed this turn. Catching it here and
+    recording it as a normal partial result instead lets the supervisor
+    react to the failure (retry a different specialist, or FINISH with
+    partial credit) the same way it already does for a Component Manager
+    error from run_component.
+    """
+
+    try:
+        return await _run_agent(state, name, factory)
+    except Exception as error:
+        logger.exception("Specialist %s failed for thread %s", name, state["thread_id"])
+        content = f"{name} failed: {error}"
+        return {
+            "messages": [AIMessage(content=content, name=name)],
+            "route_history": state["route_history"] + [name],
+            "partial_results": state["partial_results"] + [{"agent": name, "result": content}],
+            "iteration_count": state["iteration_count"] + 1,
+        }
+
+
+async def _run_agent(state: AgentState, name: str, factory: Callable[..., Awaitable[Any]]) -> dict:
+    """Build one specialist, run it, and merge its tool activity into shared state."""
 
     wiring = state["project"]["wiring"]
     reset_wiring = name == "wiring_agent" and wants_rewire(state["original_query"])
@@ -505,7 +562,7 @@ async def run_agent(state: AgentState, name: str, factory: Callable[..., Awaitab
         if code_result is not None:
             project["code_artifact"] = code_result.get("path")
     elif name == "robot_visualization_agent":
-        model_result = extract_result(result["messages"], "render_openscad")
+        model_result = extract_result(result["messages"], "render_model")
         if model_result is not None:
             project["model_artifact"] = model_result.get("preview_path")
     update["project"] = project
@@ -597,14 +654,76 @@ def finalize(state: AgentState) -> dict:
     return {"final_answer": merge_results(state["partial_results"])}
 
 
-def partial_answer(state: AgentState) -> str:
-    """Return completed work when the iteration cap is reached."""
+async def output_guard(state: AgentState) -> dict:
+    """Mask sensitive data in the final answer and block unsafe responses.
+
+    The input guardrail already ran (or this turn would have ended at
+    route_input's "blocked" edge before reaching a specialist), so this is
+    the output half of guardrails/config.yml's rails: it runs on every
+    finalized answer, including the supervisor's own conversational replies.
+    """
+
+    from app.guardrails import BLOCKED_OUTPUT_MESSAGE, check_output
+
+    final_answer = state.get("final_answer")
+    if not final_answer:
+        return {}
+
+    safe_answer = await check_output(state["original_query"], final_answer)
+    if safe_answer is None:
+        return {"final_answer": BLOCKED_OUTPUT_MESSAGE}
+    return {"final_answer": safe_answer}
+
+
+async def compact_context(state: AgentState) -> dict:
+    """Fold older turns into one running summary once a thread grows large."""
+
+    messages = state["messages"]
+    raw = [message for message in messages if message.id != CONTEXT_SUMMARY_ID]
+    if len(raw) <= COMPACTION_THRESHOLD:
+        return {}
+
+    existing_summary = next(
+        (message.content for message in messages if message.id == CONTEXT_SUMMARY_ID), ""
+    )
+    to_fold, _keep = raw[:-KEEP_RECENT_MESSAGES], raw[-KEEP_RECENT_MESSAGES:]
+    if not to_fold:
+        return {}
+
+    transcript = "\n".join(
+        f"{getattr(message, 'name', None) or message.type}: {to_text(message.content)[:500]}"
+        for message in to_fold
+    )
+    prompt = (
+        "Summarize this robotics-assistant conversation in under 150 words. Keep "
+        "concrete facts: board, components, wiring decisions, code/model artifacts, "
+        "prices, and outcomes. Write prose, not a transcript.\n\n"
+        f"Previous summary: {existing_summary or '(none)'}\n\nNew turns:\n{transcript}"
+    )
+    try:
+        response = await supervisor_model().ainvoke([HumanMessage(content=prompt)])
+        summary_text = to_text(response.content).strip()
+    except Exception:
+        logger.exception("Context summarization failed for thread %s", state["thread_id"])
+        return {}
+
+    if not summary_text:
+        return {}
+
+    summary_message = SystemMessage(content=summary_text, id=CONTEXT_SUMMARY_ID)
+    return {
+        "messages": [RemoveMessage(id=message.id) for message in to_fold] + [summary_message],
+    }
+
+
+def partial_answer(state: AgentState, reason: str = "The iteration limit was reached") -> str:
+    """Return completed work when the turn cannot continue normally."""
 
     if not state["partial_results"]:
-        return "The iteration limit was reached before any specialist completed work."
+        return f"{reason} before any specialist completed work."
 
     results = merge_results(state["partial_results"])
-    return f"Iteration limit reached. Partial results:\n\n{results}"
+    return f"{reason}. Partial results:\n\n{results}"
 
 
 def build_graph(checkpointer=None):
@@ -618,6 +737,8 @@ def build_graph(checkpointer=None):
     graph.add_node("component_manager", run_component)
     graph.add_node("purchase_approval_node", approve_purchase)
     graph.add_node("finalizer", finalize)
+    graph.add_node("output_guardrail", output_guard)
+    graph.add_node("compact_context", compact_context)
 
     for name, factory in AGENT_FACTORIES.items():
         graph.add_node(name, partial(run_agent, name=name, factory=factory))
@@ -658,6 +779,8 @@ def build_graph(checkpointer=None):
         route_approval,
         {"component_manager": "component_manager", "FINISH": "finalizer"},
     )
-    graph.add_edge("finalizer", END)
+    graph.add_edge("finalizer", "output_guardrail")
+    graph.add_edge("output_guardrail", "compact_context")
+    graph.add_edge("compact_context", END)
 
     return graph.compile(checkpointer=checkpointer, name="robotics_multi_agent")

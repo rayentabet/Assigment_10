@@ -5,7 +5,7 @@ cases described the retired local-supplier workflow. The current Component
 Manager uses DigiKey search, AP2-bound proposals, explicit human approval, and
 sandbox ordering.
 
-`cases.jsonl` contains 29 cases covering all five specialists, FINISH,
+`cases.jsonl` contains 28 cases covering all five specialists, FINISH,
 single- and multi-agent routing, tool selection, important tool arguments,
 approval/rejection behavior, project artifacts, input guardrails, and A2A recovery.
 
@@ -40,9 +40,8 @@ Argument matcher objects such as `{"ends_with": ".ino"}` and
   `app/graph.py::SUPERVISOR_PROMPT`, with exact ordering only where the user
   explicitly requests dependent work.
 - Tool expectations come from each specialist's actual registered tools and
-  prompt. System B expectations use only `check_component_availability`,
-  `search_digikey`, `create_digikey_proposal`, `place_digikey_order`, and
-  `get_digikey_order`.
+  prompt. System B expectations use only `search_digikey`,
+  `create_digikey_proposal`, `place_digikey_order`, and `get_digikey_order`.
 - Deterministic wiring outputs come from `tools/wiring_tools.py` and the static
   board/component catalogs.
 - Coding and visualization cases assert the graph's approval boundary before

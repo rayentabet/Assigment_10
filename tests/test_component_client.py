@@ -61,9 +61,9 @@ def _reset_client():
 async def test_contact_manager_parses_calls_and_results(monkeypatch) -> None:
     history = [
         new_text_message("Buy 2 hc-sr04 sensors"),
-        _call_entry("check_component_availability", "c1", {"component_id": "hc-sr04"}),
+        _call_entry("search_digikey", "c1", {"component_id": "hc-sr04"}),
         _result_entry(
-            "check_component_availability", "c1", {"found": True, "quantity_on_hand": 12}
+            "search_digikey", "c1", {"found": True, "quantity_on_hand": 12}
         ),
         _call_entry("create_digikey_proposal", "c2", {"part_number": "TEST-ND", "quantity": 2}),
         _result_entry(

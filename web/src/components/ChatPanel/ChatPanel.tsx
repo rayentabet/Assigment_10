@@ -12,6 +12,7 @@ interface ChatPanelProps {
 
 export function ChatPanel({ conversation }: ChatPanelProps) {
   const {
+    threadId,
     messages,
     imageUrls,
     pendingApproval,
@@ -67,6 +68,7 @@ export function ChatPanel({ conversation }: ChatPanelProps) {
             ? "Resolve the pending approval above first…"
             : "Ask about robotics, Arduino code, wiring, or a purchase…"
         }
+        threadId={threadId}
         onSend={send}
       />
     </section>

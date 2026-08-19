@@ -114,6 +114,7 @@ export function useConversation(threadId: string | null) {
   );
 
   return {
+    threadId,
     messages,
     imageUrls,
     wiringPlan,

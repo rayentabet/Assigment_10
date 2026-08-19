@@ -3,26 +3,31 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# openscad is a runtime dependency of the visualization agent's shell-out
-# tool (tools/openscad_tools.py); it's a system package, not a pip package.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends openscad \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
-# mcp_server/ and component_manager/ are intentionally not copied here:
-# System A talks to both over the network (MCP over HTTP, System B over
-# A2A/REST) rather than importing their code, so this image only needs the
-# packages it actually imports.
+
 COPY pyproject.toml pyproject.toml
 COPY app app
 COPY agents agents
 COPY tools tools
 COPY guardrails guardrails
 
-RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir -e .
+
+# libgl1 and friends are the runtime OpenCascade (build123d's OCP) links
+# against; without them `import build123d` fails on libGL.so.1. They used to
+# arrive incidentally as openscad dependencies, so they must be requested
+# explicitly now that openscad is gone. git is only needed to resolve the VCS
+# dependency in pyproject.toml, so it alone is purged in the same layer.
+# --retries/--timeout ride out the transient network stalls this link has shown
+# (down to ~9 kB/s), which would otherwise abort the install on pip's 15s
+# default timeout.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git libgl1 libglu1-mesa libxext6 libx11-6 \
+    && python -m pip install --no-cache-dir --retries 10 --timeout 120 --upgrade pip \
+    && python -m pip install --no-cache-dir --retries 10 --timeout 120 -e . \
+    && apt-get purge -y --auto-remove git \
+    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8000
 

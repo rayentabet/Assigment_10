@@ -98,7 +98,7 @@ The main node functions are:
 - `input_guard()` checks and masks the request.
 - `supervise()` asks the routing model for a strict `RouteDecision`.
 - `route_agent()` applies retry limits and sends file-writing agents through approval.
-- `approve_action()` pauses before code generation or OpenSCAD rendering.
+- `approve_action()` pauses before code generation or 3D model rendering.
 - `run_agent()` invokes one local specialist and records its answer, tools, images, and wiring result.
 - `run_component()` sends the supervisor task to System B through A2A.
 - `approve_purchase()` pauses on the exact price and generates an idempotency key after approval.
@@ -138,10 +138,11 @@ The model interprets the request, but `allocate_pins()` and `validate_wiring()` 
 
 `agents/robot_visualization_agent.py` receives:
 
-- `save_openscad`
-- `render_openscad`
+- `save_model`
+- `render_model`
+- `render_model_image`
 
-`tools/openscad_tools.py` restricts model names and paths, stores the `.scad` file, invokes OpenSCAD, and returns a preview artifact.
+`tools/model_tools.py` restricts model names and paths, validates each part against a shape schema, builds the geometry with build123d, and returns a preview artifact — `render_model` writes a scalable `preview.svg` and `render_model_image` draws the same isometric projection into a raster `preview.png`. Neither uses an external binary nor executes model-provided code.
 
 ## 6. Helper modules
 
@@ -177,7 +178,7 @@ The RAG Agent never accesses Qdrant directly. This keeps retrieval replaceable a
 
 `app/integrations/component_client.py` is System A's A2A client. `contact_manager()` discovers and caches System B's Agent Card, sends the supervisor's plain task, waits for completion, and returns exact structured tool calls and results.
 
-`run_component()` is the LangGraph relay node. It has no local model. System B's own Google ADK agent decides which inventory or purchasing tool to call.
+`run_component()` is the LangGraph relay node. It has no local model. System B's own Google ADK agent decides which search or purchasing tool to call.
 
 System B starts in `component_manager/server.py`. Google ADK converts the root agent from `component_manager/agent.py` into an A2A server and publishes the Agent Card. Its deterministic tools are in `component_manager/tools.py`; database operations are in `component_manager/db.py`.
 
@@ -206,8 +207,9 @@ Tool traces store actions and results, not private chain-of-thought. Supplier pa
 
 ## 10. DigiKey and AP2 implementation, function by function
 
-System B now has one purchasing path. Local SQLite answers only inventory
-questions; DigiKey supplies searchable product data and accepts sandbox orders.
+System B now has one purchasing path. DigiKey supplies searchable product data
+and accepts sandbox orders; local SQLite only tracks OAuth tokens, proposals,
+and orders.
 
 ### `component_manager/digikey.py`
 
@@ -274,10 +276,8 @@ that local submission record without making another purchase.
 
 ### `component_manager/tools.py` and `agent.py`
 
-These five functions are the only tools visible to the ADK model:
+These four functions are the only tools visible to the ADK model:
 
-- `check_component_availability()` joins the known component with its local
-  inventory and computes available quantity as on-hand minus reserved.
 - `search_digikey()` calls the read-only client, normalizes and ranks products,
   removes insufficient-stock offers, and returns product cards.
 - `create_digikey_proposal()` is a thin safe wrapper over `create_proposal()`.
@@ -286,19 +286,18 @@ These five functions are the only tools visible to the ADK model:
 - `get_digikey_order()` reads a previously submitted sandbox order.
 
 The wrappers convert expected purchasing exceptions into structured tool
-results. `agent.py` gives ADK the five callables and a prompt that makes the
+results. `agent.py` gives ADK the four callables and a prompt that makes the
 model choose and compare offers, while deterministic code retains authority
-over stock, signing, approval, OAuth, and submission.
+over signing, approval, OAuth, and submission. There is no local inventory
+store: every availability question goes to DigiKey's live catalog.
 
-### `component_manager/db.py`, `catalog.py`, and `seed_data.py`
+### `component_manager/db.py`
 
 `ComponentDB.__init__()` stores the database path. `connect()` creates the
 parent directory, opens SQLite, enables dictionary-like rows, and applies the
 schema. `close()` releases it. `connection` prevents use before connection.
 `_fetch_one()` and `_fetch_all()` are the two reusable query readers.
 
-`upsert_component()` and `upsert_inventory()` seed/update local inventory.
-`get_component()` and `get_inventory()` answer inventory tools.
 `save_oauth_state()` and `consume_oauth_state()` implement expiring, one-use
 OAuth CSRF protection. `save_oauth_tokens()`, `get_oauth_tokens()`, and
 `delete_oauth_tokens()` persist only encrypted authorization payloads.
@@ -308,10 +307,6 @@ implements idempotent lookup; `get_digikey_order()`, `insert_digikey_order()`,
 and `update_digikey_order()` keep the sandbox order audit record. `get_db()`
 creates one process-level connection under a lock; `reset_db()` closes it for
 shutdown and isolated tests.
-
-`load_components()` reads the same JSON catalog used by wiring. `seed_stock()`
-returns initial inventory. `seed()` upserts those records, while `_seed_close()`
-closes SQLite after the command-line seeder finishes.
 
 ### FastAPI and React connection functions
 
@@ -424,8 +419,8 @@ All tests are under `tests/`:
 - LangGraph routing and approval tests;
 - guardrail tests;
 - MCP and A2A integration tests;
-- code, OpenSCAD, and wiring tool tests; and
-- `tests/component_manager/` for isolated inventory and purchasing tests.
+- code, 3D model, and wiring tool tests; and
+- `tests/component_manager/` for isolated DigiKey and purchasing tests.
 
 The Component Manager fixture creates a fresh temporary SQLite database for each System B test, seeds it, and resets it afterward.
 

@@ -1,11 +1,11 @@
 """RAG specialist that receives tools from the MCP server."""
 
 from langchain.agents import create_agent
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from agents import cached_agent
 from app.config import settings
+from app.models import rag_model
 
 RAG_PROMPT = """You are the robotics documentation specialist.
 Use the MCP tools for every documentation question.
@@ -40,10 +40,9 @@ async def build_agent():
     )
     tools = await client.get_tools(server_name="arduino_rag")
     tools = [tool for tool in tools if tool.name in {"answer_question", "show_image"}]
-    model = ChatGoogleGenerativeAI(model=settings.rag_model, temperature=0)
 
     return create_agent(
-        model=model,
+        model=rag_model(),
         tools=tools,
         system_prompt=RAG_PROMPT,
     )
