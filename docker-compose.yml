@@ -1,0 +1,116 @@
+# Five services, one command: `docker compose up -d --build`.
+#
+# Each service builds from its own directory under services/ with its own
+# Dockerfile and requirements file, so any one of them can be built and started
+# on its own. System A reaches System B and the MCP server over the network by
+# service name, never by importing them.
+
+services:
+  vector-db:
+    image: qdrant/qdrant:latest
+    container_name: vector-db
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  mcp-server:
+    build:
+      # Context is the parent directory: this image also needs the sibling
+      # Assignment_8 RAG project, which lives outside this repository.
+      context: ..
+      dockerfile: Assignment_10/services/mcp-server/Dockerfile
+    image: mcp-server:local
+    container_name: mcp-server
+    env_file:
+      - ../Assignment_8/.env
+      - .env
+    environment:
+      RAG_PATH: /app/assignment_8
+      # Same compose network as vector-db, reached by service name through
+      # Compose's built-in DNS - no host.docker.internal hack needed.
+      QDRANT_URL: http://vector-db:6333
+      MCP_TRANSPORT: http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8000
+      HF_HUB_DISABLE_XET: "1"
+    depends_on:
+      - vector-db
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+
+  agent-system-b:
+    build:
+      context: ./services/agent-system-b
+    image: agent-system-b:local
+    container_name: agent-system-b
+    env_file:
+      - services/agent-system-b/.env
+    environment:
+      # Other containers reach it by service name, not 127.0.0.1 (the .env
+      # default, which is meant for local non-Docker runs).
+      ADVERTISED_HOST: agent-system-b
+    ports:
+      # 8002 is the A2A endpoint System A calls; 8003 is System B's own
+      # REST/SSE API. Both are served from this one container.
+      - "8002:8002"
+      - "8003:8003"
+    volumes:
+      - component_manager_data:/app/component_manager/data
+    restart: unless-stopped
+
+  agent-system-a:
+    build:
+      context: ./services/agent-system-a
+    image: agent-system-a:local
+    container_name: agent-system-a
+    env_file:
+      - .env
+    environment:
+      # Service-name DNS instead of the 127.0.0.1 defaults used for running
+      # everything locally without Docker.
+      MCP_SERVER_URL: http://mcp-server:8000/mcp
+      COMPONENT_MANAGER_A2A_URL: http://agent-system-b:8002
+      QDRANT_URL: http://vector-db:6333
+      # Matches the read-only bind mount below.
+      RAG_PROJECT_PATH: /app/assignment_8
+    # depends_on waits for the container process to start, not for uvicorn
+    # inside it to accept connections - a real deployment would add
+    # healthchecks and `condition: service_healthy`.
+    depends_on:
+      - mcp-server
+      - agent-system-b
+      - vector-db
+    ports:
+      - "8000:8000"
+    volumes:
+      - app_chat_data:/app/data
+      - app_generated:/app/generated
+      # System A only reads images the RAG already found (show_image results);
+      # it does not need the corpus copied into its own image the way
+      # mcp-server's build does.
+      - ../Assignment_8:/app/assignment_8:ro
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./services/frontend
+      args:
+        # Vite inlines this at build time. It points at the host-published
+        # port because the browser runs outside the compose network.
+        VITE_API_BASE_URL: http://localhost:8000
+    image: frontend:local
+    container_name: frontend
+    depends_on:
+      - agent-system-a
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+volumes:
+  qdrant_data:
+  component_manager_data:
+  app_chat_data:
+  app_generated:

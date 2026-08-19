@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     a2a_timeout_seconds: float = Field(default=60.0, gt=0)
     a2a_max_retries: int = Field(default=2, ge=0, le=5)
 
-    # React frontend (web/) dev server origin(s), JSON array in .env
+    # React frontend (services/frontend/) dev server origin(s), JSON array in .env
     cors_allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
     # Local speech-to-text (faster-whisper). int8 keeps the "small" model's

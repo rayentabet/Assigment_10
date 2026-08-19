@@ -1,8 +1,5 @@
 .env
 certs/
-component_manager/data/.oauth_key
-component_manager/data/.approval_key
-component_manager/data/.ap2_key.pem
 .venv/
 __pycache__/
 *.py[cod]
@@ -11,26 +8,33 @@ __pycache__/
 .mypy_cache/
 *.egg-info/
 .DS_Store
+node_modules/
+dist/
+
+# Agent System B signing/encryption keys
+services/agent-system-b/component_manager/data/.oauth_key
+services/agent-system-b/component_manager/data/.approval_key
+services/agent-system-b/component_manager/data/.ap2_key.pem
 
 # Local chat persistence
 data/*.sqlite
 data/*.sqlite-shm
 data/*.sqlite-wal
 
-# Component Manager (System B) local persistence
-component_manager/data/*.sqlite
-component_manager/data/*.sqlite-shm
-component_manager/data/*.sqlite-wal
+# Agent System B local persistence
+services/agent-system-b/component_manager/data/*.sqlite
+services/agent-system-b/component_manager/data/*.sqlite-shm
+services/agent-system-b/component_manager/data/*.sqlite-wal
 
 # Generated artifacts (keep directory placeholders)
-generated/code/*
-!generated/code/.gitkeep
-!generated/code/obstacle_avoiding_robot.ino
-generated/robots/*
-!generated/robots/.gitkeep
-!generated/robots/obstacle_avoiding_robot/
-!generated/robots/obstacle_avoiding_robot/model.scad
-!generated/robots/obstacle_avoiding_robot/preview.png
+services/agent-system-a/generated/code/*
+!services/agent-system-a/generated/code/.gitkeep
+!services/agent-system-a/generated/code/obstacle_avoiding_robot.ino
+services/agent-system-a/generated/robots/*
+!services/agent-system-a/generated/robots/.gitkeep
+!services/agent-system-a/generated/robots/obstacle_avoiding_robot/
+!services/agent-system-a/generated/robots/obstacle_avoiding_robot/model.scad
+!services/agent-system-a/generated/robots/obstacle_avoiding_robot/preview.png
 
 # Evaluation output
 evaluation/results.csv

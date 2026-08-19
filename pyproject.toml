@@ -41,8 +41,16 @@ dev = [
     "ruff>=0.9",
 ]
 
+# Each service owns its code under services/, but the packages stay importable
+# as top-level modules (`from app.graph import ...`) so tests/ and evaluation/
+# at the repository root, and the containers themselves, use the same imports.
 [tool.setuptools.packages.find]
-include = ["app*", "agents*", "mcp_server*", "tools*"]
+where = [
+    "services/agent-system-a",
+    "services/agent-system-b",
+    "services/mcp-server",
+]
+include = ["app*", "agents*", "tools*", "component_manager*", "mcp_server*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -51,6 +59,14 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Mirrors the packaging roots above so isort still recognises app/, agents/,
+# tools/ and component_manager as first-party imports from services/.
+src = [
+    ".",
+    "services/agent-system-a",
+    "services/agent-system-b",
+    "services/mcp-server",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

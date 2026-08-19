@@ -7,10 +7,6 @@ Two evaluation families, one dashboard:
 - **RAG Retrieval Evaluation** — saved RAGAS runs from the sibling
   Assignment_8 project (read-only: this tab only reads its output files,
   it doesn't run RAGAS itself).
-
-Distinct from `routing_dashboard.py`, which drives the live graph directly
-for fast iteration while tuning prompts — this dashboard only reviews saved
-run artifacts on disk.
 """
 
 import argparse
@@ -640,8 +636,7 @@ st.set_page_config(page_title="Evaluation Dashboard", layout="wide")
 st.title("Evaluation Dashboard")
 st.caption(
     "Saved run history for System A's agent evaluation and the RAG retrieval "
-    "evaluation, in one place. For live, interactive routing checks instead, "
-    "use routing_dashboard.py."
+    "evaluation, in one place."
 )
 
 with st.sidebar:

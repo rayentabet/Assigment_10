@@ -42,28 +42,20 @@ order, approvals, guardrails, project state, and cross-artifact checks separate.
 `case_pass` is the conjunction of the assertions applicable to that case; it is
 not used as a substitute for the individual metrics.
 
-## Dashboards
+## Dashboard
 
-- `dashboard.py` reviews **saved** runs: routing/tool/approval/guardrail
-  accuracy, a route confusion matrix, results by specialist and by
-  single-vs-multi-agent, failure classification, a filterable case table, a
-  detailed per-case view (expected vs. actual route/tools/arguments/approval),
-  and run-to-run comparison. It also reads the sibling Assignment_8 project's
-  saved RAGAS runs (`RAG_PROJECT_PATH/runs/*/metrics.csv`) in a second tab, so
-  both evaluation families are visible in one place without needing
-  Assignment_8's own dashboard running.
+`dashboard.py` reviews **saved** runs: routing/tool/approval/guardrail
+accuracy, a route confusion matrix, results by specialist and by
+single-vs-multi-agent, failure classification, a filterable case table, a
+detailed per-case view (expected vs. actual route/tools/arguments/approval),
+and run-to-run comparison. It also reads the sibling Assignment_8 project's
+saved RAGAS runs (`RAG_PROJECT_PATH/runs/*/metrics.csv`) in a second tab, so
+both evaluation families are visible in one place without needing
+Assignment_8's own dashboard running.
 
-  ```bash
-  .venv/bin/streamlit run evaluation/dashboard.py
-  ```
-
-- `routing_dashboard.py` drives the **live** graph directly for fast
-  iteration while tuning prompts or adding specialists — no saved run file
-  needed. Use `dashboard.py` to review what actually happened afterward.
-
-  ```bash
-  .venv/bin/streamlit run evaluation/routing_dashboard.py
-  ```
+```bash
+.venv/bin/streamlit run evaluation/dashboard.py
+```
 
 Runs saved before this evaluator's current schema (no `case_results.jsonl`,
 only `results.csv` with a single `expected_route`/`actual_route` pair) still
