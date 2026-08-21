@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F8FAFF"/>
+      <stop offset="1" stop-color="#EEF3FB"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#315F9B"/>
+      <stop offset="1" stop-color="#4F81BD"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#17324F" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4F81BD"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2997A4"/>
+    </marker>
+    <style>
+      .title{font:700 38px Calibri,Arial,sans-serif;fill:#102A43;letter-spacing:.2px}
+      .subtitle{font:400 19px Calibri,Arial,sans-serif;fill:#627D98}
+      .section{font:700 16px Calibri,Arial,sans-serif;fill:#627D98;letter-spacing:1.8px}
+      .nodeTitle{font:700 22px Calibri,Arial,sans-serif;fill:#102A43}
+      .nodeText{font:400 16px Calibri,Arial,sans-serif;fill:#486581}
+      .nodeTextSmall{font:400 14px Calibri,Arial,sans-serif;fill:#486581}
+      .whiteTitle{font:700 24px Calibri,Arial,sans-serif;fill:#FFFFFF}
+      .whiteText{font:400 16px Calibri,Arial,sans-serif;fill:#EAF2FB}
+      .tag{font:700 13px Calibri,Arial,sans-serif;fill:#315F9B;letter-spacing:.4px}
+      .edgeLabel{font:700 13px Calibri,Arial,sans-serif;fill:#315F9B}
+      .edgeLabelTeal{font:700 13px Calibri,Arial,sans-serif;fill:#237C88}
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="1450" cy="-20" r="260" fill="#4F81BD" opacity=".06"/>
+  <circle cx="95" cy="875" r="210" fill="#4BACC6" opacity=".07"/>
+
+  <text x="80" y="72" class="title">Robotics Multi-Agent Assistant — System Architecture</text>
+  <text x="80" y="105" class="subtitle">Independent services collaborate through explicit network protocols, with persistent state and grounded retrieval.</text>
+
+  <text x="84" y="157" class="section">USER EXPERIENCE</text>
+  <text x="350" y="157" class="section">ORCHESTRATION</text>
+  <text x="945" y="157" class="section">SPECIALIZED SERVICES</text>
+  <text x="1344" y="157" class="section">EXTERNAL</text>
+
+  <!-- connectors first so they remain behind nodes -->
+  <path d="M270 270 H345" stroke="#4F81BD" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <path d="M730 305 H915" stroke="#4F81BD" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <path d="M730 510 H915" stroke="#2997A4" stroke-width="4" fill="none" marker-end="url(#arrow-teal)"/>
+  <path d="M1195 302 H1315" stroke="#4F81BD" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <path d="M1195 520 H1315" stroke="#2997A4" stroke-width="4" fill="none" marker-end="url(#arrow-teal)"/>
+  <path d="M1195 690 H1315" stroke="#8064A2" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <path d="M690 720 C860 820 1165 825 1360 755" stroke="#8064A2" stroke-width="3" fill="none" stroke-dasharray="9 8" marker-end="url(#arrow)"/>
+
+  <text x="288" y="252" class="edgeLabel">HTTPS + SSE</text>
+  <text x="786" y="288" class="edgeLabel">A2A JSON-RPC</text>
+  <text x="795" y="493" class="edgeLabelTeal">MCP / HTTP</text>
+  <text x="1210" y="286" class="edgeLabel">OAuth + REST</text>
+  <text x="1218" y="503" class="edgeLabelTeal">Vector search</text>
+  <text x="1210" y="674" class="edgeLabel">Model APIs</text>
+
+  <!-- user -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="195" width="190" height="150" rx="24" fill="#FFFFFF" stroke="#D8E2EF" stroke-width="2"/>
+    <circle cx="175" cy="238" r="20" fill="#E8F0FA"/>
+    <circle cx="175" cy="232" r="7" fill="#4F81BD"/>
+    <path d="M160 252 Q175 238 190 252" fill="none" stroke="#4F81BD" stroke-width="5" stroke-linecap="round"/>
+    <text x="175" y="292" text-anchor="middle" class="nodeTitle">Web Client</text>
+    <text x="175" y="320" text-anchor="middle" class="nodeText">React + Vite</text>
+  </g>
+
+  <!-- System A -->
+  <g filter="url(#shadow)">
+    <rect x="345" y="185" width="385" height="575" rx="28" fill="#FFFFFF" stroke="#BDD0E6" stroke-width="2"/>
+    <rect x="345" y="185" width="385" height="88" rx="28" fill="url(#hero)"/>
+    <rect x="345" y="235" width="385" height="38" fill="url(#hero)"/>
+    <text x="380" y="225" class="whiteTitle">Agent System A</text>
+    <text x="380" y="252" class="whiteText">FastAPI + LangGraph · :8010</text>
+
+    <rect x="378" y="300" width="319" height="74" rx="16" fill="#EEF4FB" stroke="#C7D9EC"/>
+    <text x="400" y="329" class="nodeTitle">API &amp; streaming layer</text>
+    <text x="400" y="355" class="nodeTextSmall">REST endpoints · node-level SSE events</text>
+
+    <rect x="378" y="395" width="319" height="176" rx="18" fill="#F7F4FB" stroke="#D9CDE7"/>
+    <text x="400" y="428" class="nodeTitle">LangGraph supervisor</text>
+    <text x="400" y="458" class="nodeText">Routes work to specialists:</text>
+    <text x="415" y="489" class="nodeTextSmall">• RAG knowledge agent</text>
+    <text x="415" y="515" class="nodeTextSmall">• Wiring + coding agents</text>
+    <text x="415" y="541" class="nodeTextSmall">• Robot visualization agent</text>
+
+    <rect x="378" y="592" width="150" height="62" rx="14" fill="#FFF7E8" stroke="#F1D5A3"/>
+    <text x="453" y="618" text-anchor="middle" class="tag">GUARDRAILS</text>
+    <text x="453" y="640" text-anchor="middle" class="nodeTextSmall">input · output</text>
+
+    <rect x="547" y="592" width="150" height="62" rx="14" fill="#EEF8F6" stroke="#B9DDD5"/>
+    <text x="622" y="618" text-anchor="middle" class="tag">APPROVALS</text>
+    <text x="622" y="640" text-anchor="middle" class="nodeTextSmall">human · purchase</text>
+
+    <rect x="378" y="675" width="319" height="54" rx="14" fill="#F3F6FA" stroke="#CED9E5"/>
+    <text x="400" y="698" class="nodeTitle">SQLite checkpointing</text>
+    <text x="400" y="718" class="nodeTextSmall">thread state survives restarts</text>
+  </g>
+
+  <!-- System B -->
+  <g filter="url(#shadow)">
+    <rect x="915" y="195" width="280" height="215" rx="24" fill="#FFFFFF" stroke="#BDD0E6" stroke-width="2"/>
+    <rect x="915" y="195" width="280" height="68" rx="24" fill="#315F9B"/>
+    <rect x="915" y="238" width="280" height="25" fill="#315F9B"/>
+    <text x="945" y="233" class="whiteTitle">Agent System B</text>
+    <text x="945" y="290" class="nodeTitle">Component Manager</text>
+    <text x="945" y="319" class="nodeText">Google ADK agent</text>
+    <text x="945" y="350" class="nodeTextSmall">A2A :8002 · REST :8003</text>
+    <text x="945" y="378" class="nodeTextSmall">Inventory · sourcing · purchasing</text>
+  </g>
+
+  <!-- MCP -->
+  <g filter="url(#shadow)">
+    <rect x="915" y="450" width="280" height="145" rx="24" fill="#FFFFFF" stroke="#B9DDD5" stroke-width="2"/>
+    <rect x="915" y="450" width="9" height="145" rx="5" fill="#2997A4"/>
+    <text x="950" y="489" class="nodeTitle">RAG MCP Server</text>
+    <text x="950" y="519" class="nodeText">Streamable HTTP · :8001</text>
+    <text x="950" y="549" class="nodeTextSmall">Bearer-token protected</text>
+    <text x="950" y="574" class="nodeTextSmall">Arduino corpus retrieval</text>
+  </g>
+
+  <!-- model providers -->
+  <g filter="url(#shadow)">
+    <rect x="915" y="640" width="280" height="100" rx="24" fill="#FFFFFF" stroke="#D8CBE8" stroke-width="2"/>
+    <rect x="915" y="640" width="9" height="100" rx="5" fill="#8064A2"/>
+    <text x="950" y="680" class="nodeTitle">LLM gateway</text>
+    <text x="950" y="711" class="nodeTextSmall">Groq · Google · OpenRouter</text>
+  </g>
+
+  <!-- external services -->
+  <g filter="url(#shadow)">
+    <rect x="1315" y="220" width="220" height="165" rx="24" fill="#FFFFFF" stroke="#D8E2EF" stroke-width="2"/>
+    <text x="1345" y="267" class="nodeTitle">DigiKey</text>
+    <text x="1345" y="298" class="nodeText">Sandbox API</text>
+    <text x="1345" y="329" class="nodeTextSmall">OAuth · catalog</text>
+    <text x="1345" y="355" class="nodeTextSmall">ordering workflow</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1315" y="455" width="220" height="130" rx="24" fill="#FFFFFF" stroke="#B9DDD5" stroke-width="2"/>
+    <text x="1345" y="499" class="nodeTitle">Qdrant</text>
+    <text x="1345" y="530" class="nodeText">Vector database</text>
+    <text x="1345" y="559" class="nodeTextSmall">Persistent knowledge index</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1315" y="635" width="220" height="110" rx="24" fill="#FFFFFF" stroke="#D8CBE8" stroke-width="2"/>
+    <text x="1345" y="677" class="nodeTitle">Model providers</text>
+    <text x="1345" y="708" class="nodeTextSmall">Inference + tool reasoning</text>
+  </g>
+
+  <rect x="80" y="810" width="1455" height="2" fill="#D8E2EF"/>
+  <text x="80" y="850" class="nodeTextSmall">Deployment boundary: containerized services communicate over network APIs; no direct cross-service Python imports.</text>
+  <text x="1535" y="850" text-anchor="end" class="tag">DOCKER COMPOSE TOPOLOGY</text>
+</svg>
