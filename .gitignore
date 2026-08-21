@@ -11,6 +11,7 @@ __pycache__/
 .vscode/
 node_modules/
 dist/
+.claude/
 
 # Accidental local runtime directory; System B source lives under services/.
 /component_manager/
