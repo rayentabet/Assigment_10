@@ -1,0 +1,130 @@
+{
+  "cases": 29,
+  "metrics": {
+    "case_pass": {
+      "passed": 17,
+      "total": 29,
+      "rate": 0.5862068965517241
+    },
+    "route_correct": {
+      "passed": 23,
+      "total": 29,
+      "rate": 0.7931034482758621
+    },
+    "tool_selection_correct": {
+      "passed": 20,
+      "total": 29,
+      "rate": 0.6896551724137931
+    },
+    "tool_arguments_correct": {
+      "passed": 24,
+      "total": 29,
+      "rate": 0.8275862068965517
+    },
+    "tool_order_correct": {
+      "passed": 28,
+      "total": 29,
+      "rate": 0.9655172413793104
+    },
+    "guardrail_correct": {
+      "passed": 28,
+      "total": 29,
+      "rate": 0.9655172413793104
+    },
+    "approval_correct": {
+      "passed": 6,
+      "total": 10,
+      "rate": 0.6
+    },
+    "final_correct": {
+      "passed": 13,
+      "total": 15,
+      "rate": 0.8666666666666667
+    },
+    "project_correct": {
+      "passed": 10,
+      "total": 15,
+      "rate": 0.6666666666666666
+    },
+    "cross_check_correct": {
+      "passed": 1,
+      "total": 2,
+      "rate": 0.5
+    },
+    "recovery_correct": {
+      "passed": 1,
+      "total": 1,
+      "rate": 1.0
+    }
+  },
+  "required_tool_recall": 0.6170212765957447,
+  "required_tools_matched": 29,
+  "required_tools_total": 47,
+  "route_confusion": [
+    {
+      "expected": "FINISH",
+      "actual": "FINISH",
+      "count": 8
+    },
+    {
+      "expected": "coding_agent",
+      "actual": "coding_agent",
+      "count": 1
+    },
+    {
+      "expected": "component_manager",
+      "actual": "FINISH",
+      "count": 1
+    },
+    {
+      "expected": "component_manager",
+      "actual": "component_manager",
+      "count": 4
+    },
+    {
+      "expected": "component_manager -> component_manager -> component_manager",
+      "actual": "FINISH",
+      "count": 1
+    },
+    {
+      "expected": "rag_agent",
+      "actual": "FINISH",
+      "count": 1
+    },
+    {
+      "expected": "rag_agent",
+      "actual": "rag_agent",
+      "count": 3
+    },
+    {
+      "expected": "robot_visualization_agent",
+      "actual": "robot_visualization_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent",
+      "actual": "wiring_agent",
+      "count": 5
+    },
+    {
+      "expected": "wiring_agent -> coding_agent",
+      "actual": "wiring_agent -> coding_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent -> coding_agent -> robot_visualization_agent",
+      "actual": "wiring_agent -> coding_agent -> wiring_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent -> component_manager",
+      "actual": "FINISH",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent -> robot_visualization_agent",
+      "actual": "wiring_agent",
+      "count": 1
+    }
+  ]
+}

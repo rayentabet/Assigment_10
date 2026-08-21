@@ -1,0 +1,85 @@
+{
+  "cases": 2,
+  "metrics": {
+    "case_pass": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "route_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "tool_selection_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "tool_arguments_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "tool_order_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "guardrail_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "approval_correct": {
+      "passed": 1,
+      "total": 1,
+      "rate": 1.0
+    },
+    "final_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "project_correct": {
+      "passed": 1,
+      "total": 1,
+      "rate": 1.0
+    },
+    "cross_check_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "recovery_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "task_completion_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    }
+  },
+  "required_tool_recall": 1.0,
+  "required_tools_matched": 2,
+  "required_tools_total": 2,
+  "route_confusion": [
+    {
+      "expected": "rag_agent",
+      "actual": "rag_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent",
+      "actual": "wiring_agent",
+      "count": 1
+    }
+  ],
+  "mean_step_efficiency_ratio": 0.75,
+  "mean_cost_usd": 0.006121,
+  "total_cost_usd": 0.012242,
+  "mean_total_tokens": 10460.5,
+  "unpriced_models": []
+}

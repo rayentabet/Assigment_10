@@ -1,0 +1,2 @@
+id,category,case_pass,route_correct,tool_selection_correct,tool_arguments_correct,tool_order_correct,approval_correct,guardrail_correct,project_correct,cross_check_correct,recovery_correct,task_completion_correct,expected_routes,actual_routes,duration_ms,iteration_count,min_steps,step_efficiency_ratio,total_tokens,cost_usd,failures
+wiring_raspberry_pi_supported,routing,True,True,True,True,True,,True,True,,,True,"[""wiring_agent""]","[""wiring_agent""]",11256.232,1,1,1.0,16014,0.011776,[]

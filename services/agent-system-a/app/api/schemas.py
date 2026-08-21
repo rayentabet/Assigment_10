@@ -124,15 +124,7 @@ class ProductCard(BaseModel):
 
 
 class ToolTraceEntry(BaseModel):
-    """One tool call or tool result from the turn that just completed.
-
-    Shape of `ChatResponse.tool_trace`, the terminal/unary view of a turn's
-    activity; only reflects the most recent turn, not full history. The
-    streaming endpoints (`POST /threads/{id}/messages/stream` and
-    `/resume/stream`) reuse this same dict shape inline in their `"node"`
-    frames, without a dedicated Pydantic model — SSE frames are hand-built
-    dicts for flexibility, matching System B's own `_sse_frames_for_event`.
-    """
+    """One tool call or tool result from the turn that just completed."""
 
     agent: str
     event: Literal["call", "result"]

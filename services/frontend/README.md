@@ -1,7 +1,7 @@
-# React/TypeScript Frontend
+# Servo — React/TypeScript Frontend
 
-The primary frontend for the robotics multi-agent assistant. Built with Vite,
-React, TypeScript, and TanStack Query.
+The primary frontend for Servo, the robotics multi-agent assistant. Built
+with Vite, React, TypeScript, and TanStack Query.
 
 Sending a message or resolving an approval streams over SSE
 (`POST /threads/{id}/messages/stream`, `/resume/stream`): the Activity panel's

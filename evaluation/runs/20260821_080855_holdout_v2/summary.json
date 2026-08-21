@@ -1,0 +1,125 @@
+{
+  "cases": 41,
+  "metrics": {
+    "case_pass": {
+      "passed": 39,
+      "total": 41,
+      "rate": 0.9512195121951219
+    },
+    "route_correct": {
+      "passed": 40,
+      "total": 41,
+      "rate": 0.975609756097561
+    },
+    "tool_selection_correct": {
+      "passed": 39,
+      "total": 41,
+      "rate": 0.9512195121951219
+    },
+    "tool_arguments_correct": {
+      "passed": 41,
+      "total": 41,
+      "rate": 1.0
+    },
+    "tool_order_correct": {
+      "passed": 41,
+      "total": 41,
+      "rate": 1.0
+    },
+    "guardrail_correct": {
+      "passed": 41,
+      "total": 41,
+      "rate": 1.0
+    },
+    "approval_correct": {
+      "passed": 7,
+      "total": 8,
+      "rate": 0.875
+    },
+    "final_correct": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "project_correct": {
+      "passed": 27,
+      "total": 28,
+      "rate": 0.9642857142857143
+    },
+    "cross_check_correct": {
+      "passed": 1,
+      "total": 1,
+      "rate": 1.0
+    },
+    "recovery_correct": {
+      "passed": 1,
+      "total": 1,
+      "rate": 1.0
+    },
+    "task_completion_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    }
+  },
+  "required_tool_recall": 0.9629629629629629,
+  "required_tools_matched": 104,
+  "required_tools_total": 108,
+  "route_confusion": [
+    {
+      "expected": "FINISH",
+      "actual": "FINISH",
+      "count": 8
+    },
+    {
+      "expected": "coding_agent",
+      "actual": "coding_agent",
+      "count": 1
+    },
+    {
+      "expected": "component_manager",
+      "actual": "component_manager",
+      "count": 4
+    },
+    {
+      "expected": "rag_agent",
+      "actual": "rag_agent",
+      "count": 5
+    },
+    {
+      "expected": "robot_visualization_agent",
+      "actual": "robot_visualization_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent",
+      "actual": "wiring_agent",
+      "count": 18
+    },
+    {
+      "expected": "wiring_agent -> coding_agent",
+      "actual": "wiring_agent -> coding_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent -> coding_agent -> robot_visualization_agent",
+      "actual": "wiring_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent -> component_manager",
+      "actual": "wiring_agent -> component_manager",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent -> robot_visualization_agent",
+      "actual": "wiring_agent -> robot_visualization_agent",
+      "count": 1
+    }
+  ],
+  "mean_step_efficiency_ratio": 0.9068529411764705,
+  "mean_cost_usd": 0.00783807317073171,
+  "total_cost_usd": 0.32136100000000006,
+  "mean_total_tokens": 11796.90243902439,
+  "unpriced_models": []
+}

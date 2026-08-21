@@ -35,6 +35,8 @@ async def build_agent():
                 "headers": {
                     "Authorization": f"Bearer {settings.mcp_auth_token}",
                 },
+                "timeout": settings.mcp_timeout_seconds,
+                "sse_read_timeout": settings.mcp_timeout_seconds,
             }
         }
     )

@@ -27,7 +27,6 @@ services/
 tests/                Backend, graph, payment, MCP and System B tests
 evaluation/           Golden datasets, evaluator, dashboard and saved runs
 docs/                 Architecture, payment and deployment documentation
-scripts/              Small project utilities
 docker-compose.yml    Complete local stack
 pyproject.toml        Shared Python development and test configuration
 ```

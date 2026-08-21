@@ -1,0 +1,75 @@
+{
+  "cases": 2,
+  "metrics": {
+    "case_pass": {
+      "passed": 1,
+      "total": 2,
+      "rate": 0.5
+    },
+    "route_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "tool_selection_correct": {
+      "passed": 1,
+      "total": 2,
+      "rate": 0.5
+    },
+    "tool_arguments_correct": {
+      "passed": 1,
+      "total": 2,
+      "rate": 0.5
+    },
+    "tool_order_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "guardrail_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "approval_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "final_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "project_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "cross_check_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "recovery_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    }
+  },
+  "required_tool_recall": 0.5,
+  "required_tools_matched": 1,
+  "required_tools_total": 2,
+  "route_confusion": [
+    {
+      "expected": "component_manager",
+      "actual": "component_manager",
+      "count": 1
+    },
+    {
+      "expected": "rag_agent",
+      "actual": "rag_agent",
+      "count": 1
+    }
+  ]
+}

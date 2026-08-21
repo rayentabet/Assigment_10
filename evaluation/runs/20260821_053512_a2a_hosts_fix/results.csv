@@ -1,0 +1,5 @@
+id,category,case_pass,route_correct,tool_selection_correct,tool_arguments_correct,tool_order_correct,approval_correct,guardrail_correct,project_correct,cross_check_correct,recovery_correct,task_completion_correct,expected_routes,actual_routes,duration_ms,iteration_count,min_steps,step_efficiency_ratio,total_tokens,cost_usd,failures
+component_digikey_search,routing,True,True,True,True,True,,True,True,,,,"[""component_manager""]","[""component_manager""]",33152.555,1,1,1.0,5715,0.001014,[]
+component_purchase_proposal,routing,True,True,True,True,True,True,True,True,,,,"[""component_manager""]","[""component_manager""]",22919.273,1,1,1.0,1827,0.000403,[]
+multi_wiring_then_digikey_search,routing,True,True,True,True,True,,True,True,,,,"[""wiring_agent"", ""component_manager""]","[""wiring_agent"", ""component_manager""]",19442.634,2,2,1.0,19138,0.01152,[]
+guardrail_input_pii_component_manager,guardrail,True,True,True,True,True,,True,,,,,"[""component_manager""]","[""component_manager""]",30939.436,1,,,5548,0.001044,[]

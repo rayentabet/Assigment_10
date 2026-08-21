@@ -100,8 +100,8 @@ function App() {
             </svg>
           </div>
           <div className="app-header-text">
-            <h1>Robotics Multi-Agent Assistant</h1>
-            <p className="muted">FastAPI + LangGraph + A2A Component Manager</p>
+            <h1>Servo</h1>
+            <p className="muted">Robotics multi-agent assistant</p>
           </div>
         </header>
         <ChatPanel conversation={conversation} />

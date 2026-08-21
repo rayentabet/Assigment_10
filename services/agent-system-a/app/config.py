@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     qdrant_collection: str = "arduino_rag"
     mcp_server_url: str = "http://127.0.0.1:8001/mcp"
     mcp_auth_token: str = ""
+    mcp_timeout_seconds: float = Field(default=30.0, gt=0)
     chat_database_path: Path = Path("data/chat_history.sqlite")
     app_environment: str = "development"
     payment_provider: str = "sandbox"
@@ -46,9 +47,7 @@ class Settings(BaseSettings):
     lithic_base_url: str = "https://sandbox.lithic.com/v1"
     lithic_timeout_seconds: float = Field(default=20.0, gt=0)
 
-    # Component Manager (System B) A2A endpoint. 15s proved too short for a
-    # real turn where System B's model makes 2-3 sequential tool calls plus
-    # its own generation latency; confirmed against a live run.
+
     component_manager_a2a_url: str = "http://127.0.0.1:8002"
     a2a_timeout_seconds: float = Field(default=60.0, gt=0)
     a2a_max_retries: int = Field(default=2, ge=0, le=5)
@@ -61,9 +60,7 @@ class Settings(BaseSettings):
     # React frontend (services/frontend/) dev server origin(s), JSON array in .env
     cors_allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
-    # Local speech-to-text (faster-whisper). int8 keeps the "small" model's
-    # working set well under an 8GB machine; no external ffmpeg binary or
-    # network call is needed once the weights are cached locally.
+    # Local speech-to-text (faster-whisper).
     whisper_model_size: str = "small"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"

@@ -1,0 +1,15 @@
+{
+  "name": "dashboard_check",
+  "status": "completed",
+  "started_at": "2026-08-14T20:08:43.096096+00:00",
+  "completed_at": "2026-08-14T20:09:56.934981+00:00",
+  "score": 5,
+  "total": 9,
+  "models": {
+    "supervisor": "openai/gpt-oss-120b",
+    "guardrails": "openai/gpt-oss-safeguard-20b",
+    "rag": "gemini-3.1-flash-lite",
+    "coding": "qwen/qwen3.6-27b",
+    "cad": "gemini-3.1-flash-lite"
+  }
+}

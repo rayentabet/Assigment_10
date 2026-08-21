@@ -1,0 +1,90 @@
+{
+  "cases": 8,
+  "metrics": {
+    "case_pass": {
+      "passed": 5,
+      "total": 8,
+      "rate": 0.625
+    },
+    "route_correct": {
+      "passed": 8,
+      "total": 8,
+      "rate": 1.0
+    },
+    "tool_selection_correct": {
+      "passed": 5,
+      "total": 8,
+      "rate": 0.625
+    },
+    "tool_arguments_correct": {
+      "passed": 8,
+      "total": 8,
+      "rate": 1.0
+    },
+    "tool_order_correct": {
+      "passed": 8,
+      "total": 8,
+      "rate": 1.0
+    },
+    "guardrail_correct": {
+      "passed": 8,
+      "total": 8,
+      "rate": 1.0
+    },
+    "approval_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "final_correct": {
+      "passed": 5,
+      "total": 6,
+      "rate": 0.8333333333333334
+    },
+    "project_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "cross_check_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "recovery_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "task_completion_correct": {
+      "passed": 5,
+      "total": 8,
+      "rate": 0.625
+    }
+  },
+  "required_tool_recall": 0.7857142857142857,
+  "required_tools_matched": 11,
+  "required_tools_total": 14,
+  "route_confusion": [
+    {
+      "expected": "FINISH",
+      "actual": "FINISH",
+      "count": 3
+    },
+    {
+      "expected": "rag_agent",
+      "actual": "rag_agent",
+      "count": 3
+    },
+    {
+      "expected": "wiring_agent",
+      "actual": "wiring_agent",
+      "count": 2
+    }
+  ],
+  "mean_step_efficiency_ratio": 1.0,
+  "mean_cost_usd": 0.003456875,
+  "total_cost_usd": 0.027655,
+  "mean_total_tokens": 6045.75,
+  "unpriced_models": []
+}

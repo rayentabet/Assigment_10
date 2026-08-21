@@ -1,0 +1,6 @@
+id,category,case_pass,route_correct,tool_selection_correct,tool_arguments_correct,tool_order_correct,approval_correct,guardrail_correct,project_correct,cross_check_correct,recovery_correct,task_completion_correct,expected_routes,actual_routes,duration_ms,iteration_count,min_steps,step_efficiency_ratio,total_tokens,cost_usd,failures
+coding_create_arduino_approved,routing,True,True,True,True,True,True,True,True,,,True,"[""coding_agent""]","[""coding_agent""]",7992.269,1,1,1.0,6977,0.004008,[]
+visualization_generic_robot_approved,routing,True,True,True,True,True,True,True,True,,,True,"[""robot_visualization_agent""]","[""robot_visualization_agent""]",56609.734,1,1,1.0,7650,0.002239,[]
+multi_wiring_then_code,routing,True,True,True,True,True,True,True,True,True,,True,"[""wiring_agent"", ""coding_agent""]","[""wiring_agent"", ""coding_agent""]",20674.434,2,2,1.0,26572,0.02085,[]
+multi_wiring_then_visualization,routing,True,True,True,True,True,True,True,True,,,True,"[""wiring_agent"", ""robot_visualization_agent""]","[""wiring_agent"", ""robot_visualization_agent""]",25197.301,2,2,1.0,24169,0.013574,[]
+multi_full_design_chain,routing,True,True,True,True,True,True,True,True,True,,True,"[""wiring_agent"", ""coding_agent"", ""robot_visualization_agent""]","[""wiring_agent"", ""coding_agent"", ""robot_visualization_agent""]",40969.592,3,3,1.0,37500,0.02116,[]

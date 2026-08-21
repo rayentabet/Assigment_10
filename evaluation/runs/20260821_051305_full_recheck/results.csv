@@ -1,0 +1,4 @@
+id,category,case_pass,route_correct,tool_selection_correct,tool_arguments_correct,tool_order_correct,approval_correct,guardrail_correct,project_correct,cross_check_correct,recovery_correct,task_completion_correct,expected_routes,actual_routes,duration_ms,iteration_count,min_steps,step_efficiency_ratio,total_tokens,cost_usd,failures
+conversation_greeting,routing,True,True,True,True,True,,True,,,,True,[],[],3360.836,0,,,1905,0.000347,[]
+conversation_capabilities,routing,True,True,True,True,True,,True,,,,True,[],[],2895.778,0,,,2016,0.000389,[]
+conversation_out_of_scope,routing,True,True,True,True,True,,True,,,,True,[],[],2871.916,0,,,1979,0.000368,[]

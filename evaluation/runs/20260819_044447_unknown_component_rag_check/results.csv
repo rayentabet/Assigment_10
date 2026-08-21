@@ -1,0 +1,3 @@
+id,category,case_pass,route_correct,tool_selection_correct,tool_arguments_correct,tool_order_correct,approval_correct,guardrail_correct,project_correct,cross_check_correct,recovery_correct,expected_routes,actual_routes,duration_ms,iteration_count,failures
+wiring_single_dht11,routing,True,True,True,True,True,,True,True,,,"[""wiring_agent""]","[""wiring_agent""]",21282.955,1,[]
+wiring_unknown_component_consults_rag,routing,True,True,True,True,True,,True,,,,"[""wiring_agent"", ""rag_agent""]","[""wiring_agent"", ""rag_agent""]",59799.456,2,[]

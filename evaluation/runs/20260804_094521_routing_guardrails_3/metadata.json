@@ -1,0 +1,17 @@
+{
+  "name": "routing_guardrails.3",
+  "status": "completed",
+  "started_at": "2026-08-04T09:45:21.993589+00:00",
+  "completed_at": "2026-08-04T09:47:25.710378+00:00",
+  "score": 7,
+  "total": 10,
+  "models": {
+    "supervisor": "openai/gpt-oss-20b",
+    "guardrails": "openai/gpt-oss-safeguard-20b",
+    "rag_fact_checker": "gemini-3.1-flash-lite",
+    "rag": "gemini-3.1-flash-lite",
+    "coding": "qwen/qwen3.6-27b",
+    "cad": "gemini-3.1-flash-lite",
+    "general": "qwen/qwen3.6-27b"
+  }
+}

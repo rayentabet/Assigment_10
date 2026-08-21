@@ -1,0 +1,3 @@
+id,category,case_pass,route_correct,tool_selection_correct,tool_arguments_correct,tool_order_correct,approval_correct,guardrail_correct,project_correct,cross_check_correct,recovery_correct,task_completion_correct,expected_routes,actual_routes,duration_ms,iteration_count,min_steps,step_efficiency_ratio,total_tokens,cost_usd,failures
+coding_create_arduino_approved,routing,True,True,True,True,True,True,True,True,,,True,"[""coding_agent""]","[""coding_agent""]",9246.347,1,1,1.0,6673,0.003807,[]
+multi_wiring_code_rejected,routing,True,True,True,True,True,True,True,True,,,,"[""wiring_agent""]","[""wiring_agent""]",9372.326,1,,,14465,0.010334,[]

@@ -1,0 +1,9 @@
+id,category,case_pass,route_correct,tool_selection_correct,tool_arguments_correct,tool_order_correct,approval_correct,guardrail_correct,project_correct,cross_check_correct,recovery_correct,task_completion_correct,expected_routes,actual_routes,duration_ms,iteration_count,min_steps,step_efficiency_ratio,total_tokens,cost_usd,failures
+conversation_greeting,routing,True,True,True,True,True,,True,,,,True,[],[],5375.317,0,,,1702,0.000314,[]
+conversation_capabilities,routing,True,True,True,True,True,,True,,,,True,[],[],3628.542,0,,,1815,0.000358,[]
+conversation_out_of_scope,routing,True,True,True,True,True,,True,,,,True,[],[],3007.751,0,,,1849,0.000383,[]
+rag_ultrasonic_principle,routing,False,True,False,True,True,,True,,,,False,"[""rag_agent""]","[""rag_agent""]",4729.299,1,1,1.0,3326,0.000705,"[""missing required tools: [{'agent': 'rag_agent', 'tool': 'answer_question', 'min_count': 1, 'actual_count': 0}]""]"
+rag_uno_memory,routing,False,True,False,True,True,,True,,,,False,"[""rag_agent""]","[""rag_agent""]",4589.683,1,1,1.0,3172,0.000619,"[""missing required tools: [{'agent': 'rag_agent', 'tool': 'answer_question', 'min_count': 1, 'actual_count': 0}]"", ""final answer did not contain '32'"", ""final answer did not contain '2'""]"
+rag_servo_pwm,routing,False,True,False,True,True,,True,,,,False,"[""rag_agent""]","[""rag_agent""]",4388.861,1,1,1.0,3351,0.000726,"[""missing required tools: [{'agent': 'rag_agent', 'tool': 'answer_question', 'min_count': 1, 'actual_count': 0}]""]"
+wiring_single_hcsr04,routing,True,True,True,True,True,,True,True,,,True,"[""wiring_agent""]","[""wiring_agent""]",11273.748,1,1,1.0,14393,0.010979,[]
+wiring_i2c_shared_bus,routing,True,True,True,True,True,,True,True,,,True,"[""wiring_agent""]","[""wiring_agent""]",13513.276,1,1,1.0,18758,0.013571,[]

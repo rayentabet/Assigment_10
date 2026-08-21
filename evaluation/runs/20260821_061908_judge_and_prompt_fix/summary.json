@@ -1,0 +1,100 @@
+{
+  "cases": 5,
+  "metrics": {
+    "case_pass": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "route_correct": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "tool_selection_correct": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "tool_arguments_correct": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "tool_order_correct": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "guardrail_correct": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "approval_correct": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "final_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "project_correct": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "cross_check_correct": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "recovery_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "task_completion_correct": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    }
+  },
+  "required_tool_recall": 1.0,
+  "required_tools_matched": 15,
+  "required_tools_total": 15,
+  "route_confusion": [
+    {
+      "expected": "coding_agent",
+      "actual": "coding_agent",
+      "count": 1
+    },
+    {
+      "expected": "robot_visualization_agent",
+      "actual": "robot_visualization_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent -> coding_agent",
+      "actual": "wiring_agent -> coding_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent -> coding_agent -> robot_visualization_agent",
+      "actual": "wiring_agent -> coding_agent -> robot_visualization_agent",
+      "count": 1
+    },
+    {
+      "expected": "wiring_agent -> robot_visualization_agent",
+      "actual": "wiring_agent -> robot_visualization_agent",
+      "count": 1
+    }
+  ],
+  "mean_step_efficiency_ratio": 1.0,
+  "mean_cost_usd": 0.012366199999999999,
+  "total_cost_usd": 0.061831,
+  "mean_total_tokens": 20573.6,
+  "unpriced_models": []
+}

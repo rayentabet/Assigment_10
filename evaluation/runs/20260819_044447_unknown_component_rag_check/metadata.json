@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "dataset": "/Users/rayentabet/Desktop/InMind/Assignment_10/evaluation/golden_dataset/v2/cases.jsonl",
+  "name": "unknown_component_rag_check",
+  "status": "completed",
+  "started_at": "2026-08-19T04:44:47.690850+00:00",
+  "completed_at": "2026-08-19T04:46:08.779039+00:00",
+  "selected_cases": [
+    "wiring_single_dht11",
+    "wiring_unknown_component_consults_rag"
+  ],
+  "models": {
+    "supervisor": "openai/gpt-oss-120b",
+    "guardrails": "openai/gpt-oss-safeguard-20b",
+    "rag": "gemini-3.1-flash-lite",
+    "coding": "qwen/qwen3.6-27b",
+    "wiring": "qwen/qwen3.6-27b",
+    "visualization": "gemini-3.1-flash-lite"
+  }
+}

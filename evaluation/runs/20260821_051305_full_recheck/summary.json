@@ -1,0 +1,80 @@
+{
+  "cases": 3,
+  "metrics": {
+    "case_pass": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    },
+    "route_correct": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    },
+    "tool_selection_correct": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    },
+    "tool_arguments_correct": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    },
+    "tool_order_correct": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    },
+    "guardrail_correct": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    },
+    "approval_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "final_correct": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    },
+    "project_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "cross_check_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "recovery_correct": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "task_completion_correct": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    }
+  },
+  "required_tool_recall": null,
+  "required_tools_matched": 0,
+  "required_tools_total": 0,
+  "route_confusion": [
+    {
+      "expected": "FINISH",
+      "actual": "FINISH",
+      "count": 3
+    }
+  ],
+  "mean_step_efficiency_ratio": null,
+  "mean_cost_usd": 0.000368,
+  "total_cost_usd": 0.001104,
+  "mean_total_tokens": 1966.6666666666667,
+  "unpriced_models": []
+}

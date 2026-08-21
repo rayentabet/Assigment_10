@@ -27,6 +27,13 @@ RUNS_DIRECTORY = HERE / "runs"
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-name", default="system_a_v2")
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=None,
+        help="Path to a cases.jsonl file other than the default golden dataset "
+        "(e.g. a held-out set to check for overfitting to the main one).",
+    )
     parser.add_argument("--case", action="append", dest="case_ids", help="Run one case ID")
     parser.add_argument("--category", action="append", dest="categories")
     parser.add_argument("--tag", action="append", dest="tags")
@@ -274,7 +281,7 @@ def write_csv(path: Path, rows: list[dict]) -> None:
 
 async def main() -> None:
     args = parse_args()
-    cases = select_cases(load_cases(), args)
+    cases = select_cases(load_cases(args.dataset or DATASET), args)
     run_directory = create_run_directory(args.run_name)
     results_path = run_directory / "case_results.jsonl"
     csv_path = run_directory / "results.csv"
@@ -285,7 +292,7 @@ async def main() -> None:
 
     metadata = {
         "schema_version": 2,
-        "dataset": str(DATASET),
+        "dataset": str(args.dataset or DATASET),
         "name": args.run_name,
         "status": "running",
         "started_at": started.isoformat(),

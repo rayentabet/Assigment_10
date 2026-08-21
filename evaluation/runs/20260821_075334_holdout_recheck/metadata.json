@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "dataset": "evaluation/golden_dataset/v2/cases_holdout.jsonl",
+  "name": "holdout_recheck",
+  "status": "completed",
+  "started_at": "2026-08-21T07:53:34.931496+00:00",
+  "completed_at": "2026-08-21T07:53:51.863995+00:00",
+  "selected_cases": [
+    "holdout_rag_servo_center",
+    "holdout_multi_wiring_code_rejected"
+  ],
+  "models": {
+    "supervisor": "openai/gpt-oss-120b",
+    "guardrails": "openai/gpt-oss-safeguard-20b",
+    "rag": "gemini-3.1-flash-lite",
+    "coding": "qwen/qwen3.6-27b",
+    "wiring": "qwen/qwen3.6-27b",
+    "visualization": "gemini-3.1-flash-lite",
+    "judge": "openai/gpt-oss-safeguard-20b"
+  }
+}
