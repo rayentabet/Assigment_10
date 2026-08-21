@@ -16,6 +16,50 @@ A2A (:8002), REST (:8003)      |
                          Qdrant (:6333)
 ```
 
+## LangGraph workflow
+
+The supervisor routes each request to the appropriate specialist and loops
+back until all requested work is complete. Code generation and robot
+visualization pass through a human-approval node, while purchases use a
+separate purchase-approval path. Input and output guardrails surround the
+workflow, and older conversation history is compacted before the turn ends.
+
+```mermaid
+flowchart TD
+    START([START]) --> IG[input_guardrail]
+
+    IG -->|blocked| END([END])
+    IG -->|continue| S[supervisor]
+
+    S --> R[rag_agent]
+    S --> W[wiring_agent]
+    S --> HA[human_approval]
+    S --> CM[component_manager]
+    S -->|FINISH| F[finalizer]
+
+    HA --> C[coding_agent]
+    HA --> V[robot_visualization_agent]
+    HA -->|FINISH| F
+
+    R --> S
+    W --> S
+    C --> S
+    V --> S
+
+    CM -->|continue| S
+    CM -->|purchase approval| PA[purchase_approval_node]
+
+    PA --> CM
+    PA -->|FINISH| F
+
+    F --> OG[output_guardrail]
+    OG --> CC[compact_context]
+    CC --> END
+```
+
+The editable Mermaid source is available in
+[`docs/architecture/langgraph_workflow.mmd`](docs/architecture/langgraph_workflow.mmd).
+
 ## Repository structure
 
 ```text
@@ -147,7 +191,7 @@ Open the dashboard with:
 - [Docker setup](docs/DOCKER_SETUP.md)
 - [Lithic/AP2 payment flow](docs/LITHIC_PAYMENT.md)
 - [Code walkthrough](docs/CODE_WALKTHROUGH.md)
-- [Architecture diagram](docs/architecture/langgraph_workflow.svg)
+- [LangGraph workflow](docs/architecture/langgraph_workflow.mmd)
 - [Frontend details](services/frontend/README.md)
 - [System B details](services/agent-system-b/component_manager/README.md)
 

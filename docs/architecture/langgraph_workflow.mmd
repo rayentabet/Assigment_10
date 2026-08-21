@@ -11,6 +11,8 @@ graph TD;
 	component_manager(component_manager)
 	purchase_approval_node(purchase_approval_node)
 	finalizer(finalizer)
+	output_guardrail(output_guardrail)
+	compact_context(compact_context)
 	rag_agent(rag_agent)
 	coding_agent(coding_agent)
 	wiring_agent(wiring_agent)
@@ -20,7 +22,9 @@ graph TD;
 	coding_agent --> supervisor;
 	component_manager -. &nbsp;purchase_approval&nbsp; .-> purchase_approval_node;
 	component_manager -.-> supervisor;
-	finalizer --> __end__;
+	finalizer --> output_guardrail;
+	output_guardrail --> compact_context;
+	compact_context --> __end__;
 	human_approval -.-> coding_agent;
 	human_approval -. &nbsp;FINISH&nbsp; .-> finalizer;
 	human_approval -.-> robot_visualization_agent;

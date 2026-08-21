@@ -84,7 +84,14 @@ Apply these rules in order and choose exactly one next_agent:
    purchase proposal when the task explicitly says a proposal was approved. Write
    the task as a plain instruction for a separate purchasing agent to act on
    directly (it has its own tools and makes its own decisions about which to call);
-   do not try to decide which purchasing step to take yourself.
+   do not try to decide which purchasing step to take yourself. If the user names
+   multiple distinct components to buy in one message, write the task for exactly
+   ONE of them (the first not yet in completed_tasks) — component_manager proposes
+   and pauses for approval one item at a time by design, so treat "buy X, Y, and Z"
+   as three separate multi-part requests, the same way you would decompose "wire X,
+   then code Y, then model Z" into three separate specialist calls. Route the next
+   unpurchased item here again on a later turn; never bundle several components
+   into one component_manager task.
 3. coding_agent: the user asks to write, fix, debug, explain, or validate Arduino or
    other robotics-hardware code (sensor/motor/firmware logic, embedded C/C++, or a
    script that reads or controls hardware this assistant discusses). A code snippet
@@ -135,9 +142,6 @@ Before routing, inspect the latest result:
 Set requires_multiple_agents to true only when two or more different specialists are
 needed. Write a specific task; on retry, state exactly what must be corrected.
 """
-SUPERVISOR_RESULT_LIMIT = 2_000
-
-
 class ProjectPlan(TypedDict):
     """Engineering outputs shared by every specialist."""
 
@@ -260,7 +264,7 @@ async def supervise(state: AgentState) -> dict:
     compact_results = [
         {
             "agent": item["agent"],
-            "result": item["result"][:SUPERVISOR_RESULT_LIMIT],
+            "result": item["result"],
         }
         for item in state["partial_results"]
     ]
@@ -270,7 +274,7 @@ async def supervise(state: AgentState) -> dict:
         if not content:
             continue
         speaker = getattr(message, "name", None) or getattr(message, "type", "message")
-        recent_conversation.append({"speaker": speaker, "content": content[:1_000]})
+        recent_conversation.append({"speaker": speaker, "content": content})
     routing_context = (
         f"Original request: {state['original_query']}\n"
         f"Recent conversation: {recent_conversation}\n"
