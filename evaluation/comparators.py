@@ -31,8 +31,12 @@ def value_matches(expected: Any, actual: Any) -> bool:
             key in actual and value_matches(value, actual[key]) for key, value in expected.items()
         )
     if isinstance(expected, list):
-        return isinstance(actual, list) and len(expected) == len(actual) and all(
-            value_matches(left, right) for left, right in zip(expected, actual, strict=True)
+        return (
+            isinstance(actual, list)
+            and len(expected) == len(actual)
+            and all(
+                value_matches(left, right) for left, right in zip(expected, actual, strict=True)
+            )
         )
     if isinstance(expected, str) and isinstance(actual, str):
         return _normalise_text(expected) == _normalise_text(actual)
@@ -77,9 +81,7 @@ def compare_tools(expected: dict, tool_trace: list[dict]) -> dict[str, Any]:
                 _required_call_matches(spec, call, check_arguments=True) for call in calls
             )
             if argument_count < minimum:
-                argument_mismatches.append(
-                    {**spec, "matching_argument_count": argument_count}
-                )
+                argument_mismatches.append({**spec, "matching_argument_count": argument_count})
 
     forbidden_seen = [name for name in actual_names if name in forbidden]
     ordered = expected.get("ordered_subsequence", [])
@@ -169,9 +171,7 @@ def _code_reuses_wiring_pins(project: dict) -> tuple[bool, str | None]:
     }
     code = Path(artifact).read_text(encoding="utf-8")
     missing = [
-        pin
-        for pin in sorted(pins)
-        if not re.search(rf"(?<!\w){re.escape(pin)}(?!\w)", code)
+        pin for pin in sorted(pins) if not re.search(rf"(?<!\w){re.escape(pin)}(?!\w)", code)
     ]
     problem = f"generated code did not reuse wiring pin(s): {missing}" if missing else None
     return not missing, problem
@@ -283,6 +283,7 @@ def aggregate_summary(results: list[dict]) -> dict[str, Any]:
         "project_correct",
         "cross_check_correct",
         "recovery_correct",
+        "task_completion_correct",
     ]
     metrics = {}
     for field in metric_fields:
@@ -302,6 +303,20 @@ def aggregate_summary(results: list[dict]) -> dict[str, Any]:
         )
         for result in results
     )
+
+    step_ratios = [
+        result["step_efficiency_ratio"]
+        for result in results
+        if result.get("step_efficiency_ratio") is not None
+    ]
+    costs = [result["cost_usd"] for result in results if result.get("cost_usd") is not None]
+    tokens = [
+        result["total_tokens"] for result in results if result.get("total_tokens") is not None
+    ]
+    unpriced_models = sorted(
+        {model for result in results for model in result.get("unpriced_models", [])}
+    )
+
     return {
         "cases": len(results),
         "metrics": metrics,
@@ -312,4 +327,9 @@ def aggregate_summary(results: list[dict]) -> dict[str, Any]:
             {"expected": expected, "actual": actual, "count": count}
             for (expected, actual), count in sorted(route_confusion.items())
         ],
+        "mean_step_efficiency_ratio": sum(step_ratios) / len(step_ratios) if step_ratios else None,
+        "mean_cost_usd": sum(costs) / len(costs) if costs else None,
+        "total_cost_usd": sum(costs) if costs else None,
+        "mean_total_tokens": sum(tokens) / len(tokens) if tokens else None,
+        "unpriced_models": unpriced_models,
     }

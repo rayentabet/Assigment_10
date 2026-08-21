@@ -2,7 +2,6 @@
 
 import json
 import os
-import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,17 +9,16 @@ from fastmcp import FastMCP
 from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
 from fastmcp.utilities.types import Image
 
+from mcp_server.qdrant_bootstrap import ensure_qdrant_collection
+
 RAG_PATH = Path(
-    os.environ.get("RAG_PATH", "/Users/rayentabet/Desktop/InMind/Assignment_8")
+    os.environ.get("RAG_PATH", Path(__file__).resolve().parents[1] / "rag")
 ).resolve()
 
-# The old RAG uses paths relative to its own folder.
-os.chdir(RAG_PATH)
-sys.path.insert(0, str(RAG_PATH))
-load_dotenv(RAG_PATH / ".env", override=False)
+load_dotenv(override=False)
 
-from rag_adapter import adapter  # noqa: E402
-from retrieval import search  # noqa: E402
+from rag.adapter import adapter  # noqa: E402
+from rag.retrieval import search  # noqa: E402
 
 MCP_AUTH_TOKEN = os.environ.get("MCP_AUTH_TOKEN", "")
 auth = None
@@ -109,6 +107,7 @@ def corpus_metadata() -> str:
 
 
 if __name__ == "__main__":
+    ensure_qdrant_collection()
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if transport == "http":
         if not MCP_AUTH_TOKEN:

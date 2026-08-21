@@ -30,6 +30,9 @@ dependencies = [
     "pydantic>=2.10",
     "pydantic-settings>=2.7",
     "python-dotenv>=1.0",
+    "qdrant-client",
+    "rank-bm25",
+    "sentence-transformers",
     "streamlit>=1.40,<2",
     "uvicorn[standard]>=0.34,<1",
 ]
@@ -50,11 +53,17 @@ where = [
     "services/agent-system-b",
     "services/mcp-server",
 ]
-include = ["app*", "agents*", "tools*", "component_manager*", "mcp_server*"]
+include = ["app*", "agents*", "tools*", "component_manager*", "mcp_server*", "rag*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+pythonpath = [
+    ".",
+    "services/agent-system-a",
+    "services/agent-system-b",
+    "services/mcp-server",
+]
 
 [tool.ruff]
 line-length = 100

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
-import { forgetSandboxCard, tokenizeSandboxCard } from "../../api/client";
-import type { PaymentCredential, PurchaseProposal } from "../../api/types";
+import { createLithicMethod, forgetSandboxCard, getPaymentConfig, tokenizeSandboxCard } from "../../api/client";
+import type { PaymentConfig, PaymentCredential, PurchaseProposal } from "../../api/types";
 import "./ChatPanel.css";
 
 interface PurchaseProposalCardProps {
@@ -26,6 +26,9 @@ export function PurchaseProposalCard({
   const [cvv, setCvv] = useState("123");
   const [isTokenizing, setIsTokenizing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null);
+  useEffect(() => { void getPaymentConfig().then(setPaymentConfig).catch(error =>
+    setPaymentError(error instanceof Error ? error.message : String(error))); }, []);
 
   async function approveWithCard(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,7 +40,7 @@ export function PurchaseProposalCard({
       setExpiry("");
       setCvv("");
       onCredentialChange(credential);
-      onDecide(true, credential.credential_id);
+      onDecide(true, credential.payment_method_id);
     } catch (error) {
       setPaymentError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -49,12 +52,23 @@ export function PurchaseProposalCard({
     if (!paymentCredential) return;
     setPaymentError(null);
     try {
-      await forgetSandboxCard(paymentCredential.credential_id);
+      await forgetSandboxCard(paymentCredential.payment_method_id);
       onCredentialChange(null);
       setShowPayment(true);
     } catch (error) {
       setPaymentError(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  async function approveWithLithic() {
+    setIsTokenizing(true); setPaymentError(null);
+    try {
+      const credential = await createLithicMethod();
+      onCredentialChange(credential);
+      onDecide(true, credential.payment_method_id);
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : String(error));
+    } finally { setIsTokenizing(false); }
   }
 
   return (
@@ -77,8 +91,8 @@ export function PurchaseProposalCard({
 
       {paymentCredential && !showPayment && (
         <div className="saved-payment">
-          <strong>{paymentCredential.brand} ending in {paymentCredential.last4}</strong>
-          <span>Session-only AP2 sandbox payment method</span>
+          <strong>{paymentCredential.display}</strong>
+          <span>Payment method reference (card details remain with the provider)</span>
         </div>
       )}
 
@@ -90,10 +104,10 @@ export function PurchaseProposalCard({
               className="sidebar-button primary"
               disabled={isBusy}
               onClick={() => paymentCredential
-                ? onDecide(true, paymentCredential.credential_id)
+                ? onDecide(true, paymentCredential.payment_method_id)
                 : setShowPayment(true)}
             >
-              {paymentCredential ? "Approve with saved test card" : "Approve and enter test card"}
+              {paymentCredential ? "Approve with saved method" : "Approve and add payment method"}
             </button>
             {paymentCredential && (
               <button type="button" className="sidebar-button" disabled={isBusy} onClick={() => setShowPayment(true)}>
@@ -112,7 +126,21 @@ export function PurchaseProposalCard({
         </>
       )}
 
-      {showPayment && (
+      {showPayment && paymentConfig?.provider === "lithic" && (
+        <div className="payment-form">
+          <p className="payment-boundary">
+            A single-use Lithic Sandbox virtual card will be issued only after approval.
+            No card details are shown to the assistant or browser.
+          </p>
+          {paymentError && <p className="error-text">{paymentError}</p>}
+          <button type="button" className="sidebar-button primary"
+            disabled={isBusy || isTokenizing} onClick={() => void approveWithLithic()}>
+            {isTokenizing ? "Preparing…" : "Approve with Lithic Sandbox"}
+          </button>
+        </div>
+      )}
+
+      {showPayment && paymentConfig?.provider === "sandbox" && (
         <form className="payment-form" onSubmit={approveWithCard}>
           <p className="payment-boundary">
             AP2 sandbox Credential Provider. Card fields are tokenized and never sent to

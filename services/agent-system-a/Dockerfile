@@ -21,11 +21,22 @@ COPY requirements.txt requirements.txt
 # --retries/--timeout ride out the transient network stalls this link has
 # shown (down to ~9 kB/s), which would otherwise abort the install on pip's
 # 15 second default timeout.
+#
+# The two heaviest wheels are installed on their own before the rest.
+# build123d pulls OCP (OpenCascade, hundreds of MB unpacked) and
+# faster-whisper pulls ctranslate2/onnxruntime; resolving and unpacking them
+# alongside everything else exhausts Docker's memory budget on an 8 GB host
+# and fails the build with "cannot allocate memory". Splitting the install
+# keeps peak usage inside that budget. Versions match requirements.txt, so
+# the final `-r` pass finds them already satisfied.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git libgl1 libglu1-mesa libxext6 libx11-6 \
-    && python -m pip install --no-cache-dir --retries 10 --timeout 120 --upgrade pip \
-    && python -m pip install --no-cache-dir --retries 10 --timeout 120 -r requirements.txt \
+    && PIP="python -m pip install --no-cache-dir --retries 10 --timeout 120" \
+    && $PIP --upgrade pip \
+    && $PIP "build123d>=0.9" \
+    && $PIP "faster-whisper>=1.2,<2" \
+    && $PIP -r requirements.txt \
     && apt-get purge -y --auto-remove git \
     && rm -rf /var/lib/apt/lists/*
 

@@ -3,6 +3,7 @@
 import hashlib
 import logging
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypedDict
@@ -88,9 +89,14 @@ Apply these rules in order and choose exactly one next_agent:
    other robotics-hardware code (sensor/motor/firmware logic, embedded C/C++, or a
    script that reads or controls hardware this assistant discusses). A code snippet
    with no robotics/hardware connection (e.g. a generic Python/JS utility function
-   unrelated to any device) is out of scope; use FINISH (5c) instead.
+   unrelated to any device) is out of scope; use FINISH (5c) instead. Route here
+   only to write NEW or changed code; if the user just asks to see code already
+   written and described earlier in Recent conversation, use FINISH (5d) instead.
 4. robot_visualization_agent: the user asks to create, show, render, preview, or model
-   a robot in CAD, 3D, or OpenSCAD.
+   a robot in CAD, 3D, or OpenSCAD. Route here only to create a new model or change
+   an existing one; if the user just asks to see a picture/model already created and
+   described earlier in Recent conversation, use FINISH (5d) instead — the image was
+   already delivered to the client and there is nothing new to render.
 5. rag_agent: the user asks a factual question about Arduino or physical robotics
    hardware, such as a sensor's behavior, wiring, motor control, or documented specs.
 - Follow-up confirmations: resolve short replies such as "yes", "proceed", "do that",
@@ -109,6 +115,12 @@ Apply these rules in order and choose exactly one next_agent:
   c. For an unrelated or out-of-scope request, use FINISH and put a brief user-facing
      refusal in task that redirects the user to the supported robotics topics. Do not
      answer the unrelated question itself.
+  d. When the user only asks to see, view, or show again an artifact (a rendered
+     model image or generated code) that Recent conversation already shows was
+     created and delivered this thread, and nothing new is requested, use FINISH
+     and put a brief reply in task noting it is already shown above. Never
+     re-invoke coding_agent or robot_visualization_agent just to redisplay
+     something already produced.
 
 Before routing, inspect the latest result:
 - If it answers the task and no requested part remains, choose FINISH.
@@ -156,6 +168,7 @@ class AgentState(TypedDict):
     multi_agent_request: bool | None
     input_blocked: bool
     final_answer: str | None
+    trusted_payment_result: bool
 
 
 class RouteDecision(BaseModel):
@@ -204,6 +217,7 @@ def new_state(
         "multi_agent_request": None,
         "input_blocked": False,
         "final_answer": None,
+        "trusted_payment_result": False,
     }
 
 
@@ -366,7 +380,7 @@ def route_purchase(state: AgentState) -> str:
     return "supervisor"
 
 
-def approve_purchase(state: AgentState) -> dict:
+async def approve_purchase(state: AgentState) -> dict:
     """Ask the caller to approve a purchase proposal's exact terms before it is submitted.
 
     Distinct from human_approval_node: that node gates an entire specialist
@@ -412,34 +426,56 @@ def approve_purchase(state: AgentState) -> dict:
             ),
         }
 
-    credential_id = response.get("payment_credential_id") if isinstance(response, dict) else None
-    if not credential_id:
+    payment_method_id = response.get("payment_method_id") if isinstance(response, dict) else None
+    if not payment_method_id:
         return {
             "next_agent": "FINISH",
-            "final_answer": (
-                "Purchase was not submitted because no sandbox payment credential was provided."
-            ),
+            "final_answer": ("Purchase was not submitted because no payment method was provided."),
         }
-
-    from app.payment_vault import CredentialError, authorize
-
-    try:
-        credential = authorize(credential_id)
-    except CredentialError as error:
-        return {"next_agent": "FINISH", "final_answer": str(error)}
 
     idempotency_key = hashlib.sha256(
         f"{state['thread_id']}:{proposal['proposal_id']}".encode()
     ).hexdigest()
-    task = (
-        f"Submit approved proposal {proposal['proposal_id']} using approval_token "
-        f"{proposal['approval_token']}, idempotency_key {idempotency_key}, and sandbox "
-        f"payment_credential_id {credential_id} ({credential.brand} ending in "
-        f"{credential.last4})."
-    )
+    from app.payment_service import ExecutionMandate, PaymentExecutionError, payment_service
+
+    try:
+        expiry = datetime.strptime(proposal["expires_at"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+        mandate = ExecutionMandate(
+            user_id=state["thread_id"],
+            merchant=proposal.get("supplier_name") or "",
+            amount_cents=round(float(proposal["total"]) * 100),
+            currency=proposal["currency"],
+            items=((proposal["component_id"], int(proposal["quantity"])),),
+            expires_at_epoch=int(expiry.timestamp()),
+            nonce=idempotency_key,
+        )
+        result = await payment_service.execute(
+            proposal_id=proposal["proposal_id"],
+            approval_token=proposal["approval_token"],
+            payment_method_id=payment_method_id,
+            mandate=mandate,
+        )
+    except PaymentExecutionError as error:
+        return {
+            "next_agent": "FINISH",
+            "final_answer": f"Payment method {payment_method_id}: {error}",
+            "trusted_payment_result": True,
+        }
+    project = dict(state["project"])
+    project["purchase"] = {
+        "proposal_id": proposal["proposal_id"],
+        "order_id": result.get("order_id"),
+        "status": result.get("status"),
+    }
     return {
-        "next_agent": "component_manager",
-        "completed_tasks": state["completed_tasks"] + [task],
+        "next_agent": "FINISH",
+        "pending_purchase_proposal": None,
+        "project": project,
+        "trusted_payment_result": True,
+        "final_answer": (
+            f"Approved payment method {result['payment_method_id']} ({result['payment_display']}). "
+            f"DigiKey sandbox order {result.get('order_id')} is {result.get('status')}."
+        ),
     }
 
 
@@ -498,8 +534,23 @@ async def _run_agent(state: AgentState, name: str, factory: Callable[..., Awaita
     elif reset_wiring:
         prompt += "\nThe user explicitly requested a redesign; saved pin assignments were cleared."
 
-    result = await agent.ainvoke({"messages": [HumanMessage(content=prompt)]})
-    content = to_text(result["messages"][-1].content)
+    result = await agent.ainvoke(
+        {"messages": [HumanMessage(content=prompt)]},
+        config={"metadata": {"specialist": name}},
+    )
+    content = to_text(result["messages"][-1].content).strip()
+    if not content:
+        # An empty completion (rare LLM hiccup) must still produce a
+        # non-empty result: empty content is silently dropped both from
+        # chat history (_finalize_turn only saves a truthy final_answer)
+        # and from the supervisor's own routing context (supervise()
+        # skips blank messages), so a silent empty response here made the
+        # whole exchange vanish - the next turn ("why did that fail?")
+        # then had no memory the request ever happened and looked like a
+        # non-sequitur to the supervisor.
+        content = (
+            f"{name} completed without producing a response. Please try rephrasing your request."
+        )
 
     tool_trace = []
     image_paths = []
@@ -564,7 +615,12 @@ async def _run_agent(state: AgentState, name: str, factory: Callable[..., Awaita
     elif name == "robot_visualization_agent":
         model_result = extract_result(result["messages"], "render_model")
         if model_result is not None:
-            project["model_artifact"] = model_result.get("preview_path")
+            # The .json model path, not the rendered preview.png: this is
+            # what a future render_model call needs to re-render the same
+            # model, and it's what gets fed back into the specialist's
+            # prompt via project_context(). The preview image itself is
+            # already delivered to the client through image_paths/image_urls.
+            project["model_artifact"] = model_result.get("model_path")
     update["project"] = project
     return update
 
@@ -586,7 +642,15 @@ async def run_component(state: AgentState) -> dict:
     if "error" in result:
         content = f"Component Manager error: {result['error']}"
     else:
-        content = result.get("answer", "")
+        content = result.get("answer", "").strip()
+        if not content:
+            # See the matching guard in _run_agent: empty content must not
+            # pass through silently, or this exchange disappears from both
+            # chat history and the supervisor's routing context.
+            content = (
+                "component_manager completed without producing a response. "
+                "Please try rephrasing your request."
+            )
         for call in result.get("tool_calls", []):
             tool_trace.append(
                 {
@@ -668,6 +732,14 @@ async def output_guard(state: AgentState) -> dict:
     final_answer = state.get("final_answer")
     if not final_answer:
         return {}
+
+    if state.get("trusted_payment_result"):
+        # This text is constructed only from PaymentService's allowlisted safe
+        # return fields. Apply deterministic masking without sending it through
+        # another model, which can falsely classify opaque pm_/order IDs.
+        from app.guardrails import mask_text
+
+        return {"final_answer": mask_text(final_answer)}
 
     safe_answer = await check_output(state["original_query"], final_answer)
     if safe_answer is None:

@@ -16,7 +16,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.artifacts.in_memory_artifact_service import InMemoryArtifactService
@@ -32,6 +32,13 @@ from pydantic import BaseModel, Field
 
 from component_manager.agent import root_agent
 from component_manager.config import settings
+from component_manager.oauth import OAuthError
+from component_manager.oauth import authorization_url as digikey_authorization_url
+from component_manager.oauth import connection_status as digikey_connection_status
+from component_manager.oauth import disconnect as digikey_disconnect
+from component_manager.oauth import exchange_code as digikey_exchange_code
+from component_manager.purchasing import PurchaseError
+from component_manager.purchasing import place_order as place_digikey_order
 
 _APP_NAME = "component_manager"
 _USER_ID = "dev"
@@ -49,10 +56,32 @@ class ThreadListResponse(BaseModel):
     threads: list[str]
 
 
+class DigikeyAuthorizeResponse(BaseModel):
+    """DigiKey's sandbox authorization URL for System A to redirect the browser to."""
+
+    url: str
+
+
+class DigikeyCallbackRequest(BaseModel):
+    """The code/state DigiKey's OAuth callback handed to System A."""
+
+    code: str
+    state: str
+
+
 class ChatMessageRequest(BaseModel):
     """A user message sent to an existing thread."""
 
     message: str = Field(min_length=1, max_length=20_000)
+
+
+class InternalOrderRequest(BaseModel):
+    """Model-free service-to-service sandbox order handoff."""
+
+    proposal_id: str
+    approval_token: str
+    idempotency_key: str
+    payment_reference: str
 
 
 class ToolTraceEntry(BaseModel):
@@ -121,6 +150,57 @@ async def health() -> dict[str, str]:
     """Report that the REST process is available."""
 
     return {"status": "ok"}
+
+
+@app.get("/oauth/digikey/authorize", response_model=DigikeyAuthorizeResponse)
+async def digikey_authorize() -> DigikeyAuthorizeResponse:
+    """Return DigiKey's authorization URL; System A redirects the user's browser to it."""
+
+    try:
+        url = await digikey_authorization_url()
+    except OAuthError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    return DigikeyAuthorizeResponse(url=url)
+
+
+@app.post("/oauth/digikey/callback", status_code=status.HTTP_204_NO_CONTENT)
+async def digikey_callback(request: DigikeyCallbackRequest) -> Response:
+    """Validate DigiKey's callback and store encrypted, rotating OAuth tokens."""
+
+    try:
+        await digikey_exchange_code(request.code, request.state)
+    except OAuthError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/oauth/digikey/status")
+async def digikey_status() -> dict:
+    """Report connection metadata without exposing tokens."""
+
+    return await digikey_connection_status()
+
+
+@app.delete("/oauth/digikey/connection", status_code=status.HTTP_204_NO_CONTENT)
+async def digikey_disconnect_route() -> Response:
+    """Delete locally stored DigiKey OAuth tokens."""
+
+    await digikey_disconnect()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/internal/digikey/orders")
+async def submit_internal_digikey_order(request: InternalOrderRequest) -> dict:
+    """Validate AP2/approval and submit without exposing payment data to ADK."""
+    try:
+        return await place_digikey_order(
+            request.proposal_id,
+            request.approval_token,
+            request.idempotency_key,
+            request.payment_reference,
+        )
+    except PurchaseError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.post("/threads", response_model=ThreadResponse, status_code=status.HTTP_201_CREATED)

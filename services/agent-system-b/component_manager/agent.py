@@ -6,7 +6,6 @@ from component_manager.config import settings
 from component_manager.tools import (
     create_digikey_proposal,
     get_digikey_order,
-    place_digikey_order,
     search_digikey,
 )
 
@@ -24,10 +23,9 @@ explicitly name the DigiKey part number and quantity if they want to buy. If the
 user explicitly asks to buy, first search with their exact quantity, select one
 exact DigiKey part number, then call create_digikey_proposal. Only then call the
 successful tool result a purchase proposal. Stop after returning it so System A
-can request human approval. Call place_digikey_order only when System A sends an
-explicit task containing the proposal_id, approval_token, idempotency_key, and
-opaque payment_credential_id. The opaque reference is safe metadata; never ask
-for or accept a card number, CVV, expiry, billing credentials, or payment token.
+can request human approval. Order execution is performed by a deterministic
+service after approval; it is not an agent tool. Never ask for or accept a card
+number, CVV, expiry, provider reference, API secret, or payment token.
 All orders are sandbox-only. Never invent specifications, stock, prices, URLs,
 approval, or order state. Never reveal approval tokens, OAuth tokens, AP2 SD-JWTs,
 or hidden reasoning.
@@ -40,7 +38,6 @@ root_agent = Agent(
     tools=[
         search_digikey,
         create_digikey_proposal,
-        place_digikey_order,
         get_digikey_order,
     ],
 )

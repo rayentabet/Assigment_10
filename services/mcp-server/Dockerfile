@@ -1,8 +1,8 @@
 # Custom MCP server exposing the Arduino RAG as tools.
 #
-# The build context is the directory *above* this repository, because the
-# server runs the sibling Assignment_8 RAG project's retrieval code as well as
-# its own MCP wrapper.
+# The build context is this service directory. The runtime RAG package and
+# referenced corpus images are embedded under rag/, so no sibling repository
+# is required.
 
 FROM python:3.11-slim
 
@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HF_HUB_DISABLE_XET=1 \
     HF_HUB_DOWNLOAD_TIMEOUT=120 \
-    RAG_PATH=/app/assignment_8 \
+    RAG_PATH=/app/rag \
     MCP_TRANSPORT=http \
     MCP_HOST=0.0.0.0 \
     MCP_PORT=8000
@@ -19,7 +19,7 @@ WORKDIR /app
 
 # Requirements alone first, so the expensive dependency layer is not
 # invalidated every time the RAG corpus or the server source changes.
-COPY Assignment_10/services/mcp-server/requirements.txt requirements.txt
+COPY requirements.txt requirements.txt
 
 # --retries/--timeout ride out transient stalls: this link has been observed
 # dropping to ~9 kB/s mid-download, which kills an otherwise fine build after
@@ -42,9 +42,9 @@ RUN for attempt in 1 2 3 4 5; do \
     echo "reranker download failed after 5 attempts" >&2; \
     exit 1
 
-COPY Assignment_8 /app/assignment_8
-COPY Assignment_10/services/mcp-server/mcp_server /app/mcp_server
+COPY mcp_server /app/mcp_server
+COPY rag /app/rag
 
 EXPOSE 8000
 
-CMD ["python", "mcp_server/server.py"]
+CMD ["python", "-m", "mcp_server.server"]

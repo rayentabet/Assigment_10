@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
+from collections.abc import AsyncIterator
 from uuid import uuid4
 
 import aiosqlite
@@ -114,65 +115,165 @@ async def shutdown() -> None:
         _connection = None
 
 
-async def send_message(user_input: str, thread_id: str | None = None) -> dict:
-    """Send a message on a new or existing conversation thread."""
+async def _finalize_turn(thread_id: str, result: dict) -> None:
+    """Persist one completed (non-paused) turn's side effects.
+
+    Shared by every send/resume flow, unary or streaming, so a turn is
+    recorded exactly the same way regardless of how the caller reached it.
+    """
+
+    if result.get("project"):
+        await save_project(thread_id, result["project"])
+    if result.get("final_answer") and not result.get("__interrupt__"):
+        await _save_message(thread_id, "assistant", result["final_answer"])
+        if not result.get("input_blocked"):
+            await _maybe_generate_title(thread_id, result["final_answer"])
+        await register_artifacts(thread_id, result.get("image_paths", []))
+        project = result.get("project", {})
+        if project.get("wiring"):
+            await save_wiring(thread_id, project["wiring"])
+        if project.get("purchase"):
+            await save_purchase(thread_id, project["purchase"])
+
+
+async def send_message(
+    user_input: str, thread_id: str | None = None, callbacks: list | None = None
+) -> dict:
+    """Send a message on a new or existing conversation thread.
+
+    `callbacks` is optional and unused by the FastAPI app; the evaluation
+    harness attaches a token-usage collector through it so cost tracking
+    stays outside production request handling.
+    """
 
     thread_id = thread_id or str(uuid4())
     await create_thread(thread_id)
     await _save_message(thread_id, "user", user_input)
     graph = await get_graph()
     project = await get_project(thread_id)
+    config: dict = {"configurable": {"thread_id": thread_id}}
+    if callbacks:
+        config["callbacks"] = callbacks
     result = await graph.ainvoke(
         new_state(user_input, thread_id=thread_id, project=project),
-        config={"configurable": {"thread_id": thread_id}},
+        config=config,
     )
     result["thread_id"] = thread_id
-    if result.get("project"):
-        await save_project(thread_id, result["project"])
-    if result.get("final_answer") and not result.get("__interrupt__"):
-        await _save_message(thread_id, "assistant", result["final_answer"])
-        if not result.get("input_blocked"):
-            await _maybe_generate_title(thread_id, result["final_answer"])
-        await register_artifacts(thread_id, result.get("image_paths", []))
-        project = result.get("project", {})
-        if project.get("wiring"):
-            await save_wiring(thread_id, project["wiring"])
-        if project.get("purchase"):
-            await save_purchase(thread_id, project["purchase"])
+    await _finalize_turn(thread_id, result)
     return result
 
 
 async def resume_thread(
     thread_id: str,
     approved: bool,
-    payment_credential_id: str | None = None,
+    payment_method_id: str | None = None,
+    callbacks: list | None = None,
 ) -> dict:
-    """Resume a paused thread with its human approval decision."""
+    """Resume a paused thread with its human approval decision.
+
+    `callbacks` is optional and unused by the FastAPI app; see `send_message`.
+    """
 
     graph = await get_graph()
+    config: dict = {"configurable": {"thread_id": thread_id}}
+    if callbacks:
+        config["callbacks"] = callbacks
     result = await graph.ainvoke(
         Command(
             resume={
                 "approved": approved,
-                "payment_credential_id": payment_credential_id,
+                "payment_method_id": payment_method_id,
             }
         ),
-        config={"configurable": {"thread_id": thread_id}},
+        config=config,
     )
     result["thread_id"] = thread_id
-    if result.get("project"):
-        await save_project(thread_id, result["project"])
-    if result.get("final_answer") and not result.get("__interrupt__"):
-        await _save_message(thread_id, "assistant", result["final_answer"])
-        if not result.get("input_blocked"):
-            await _maybe_generate_title(thread_id, result["final_answer"])
-        await register_artifacts(thread_id, result.get("image_paths", []))
-        project = result.get("project", {})
-        if project.get("wiring"):
-            await save_wiring(thread_id, project["wiring"])
-        if project.get("purchase"):
-            await save_purchase(thread_id, project["purchase"])
+    await _finalize_turn(thread_id, result)
     return result
+
+
+_background_tasks: set[asyncio.Task] = set()
+
+
+async def _drain_graph(
+    graph, config: dict, graph_input, thread_id: str, queue: asyncio.Queue
+) -> None:
+    """Run one graph turn to completion/pause, forwarding every chunk to `queue`.
+
+    Runs as a detached background task (see `_stream_turn`) so a client
+    disconnecting from the SSE response can never cut the graph run short or
+    skip `_finalize_turn` — the turn is recorded exactly once, regardless of
+    whether anyone was still listening when it finished.
+    """
+
+    try:
+        interrupt_chunk = None
+        async for chunk in graph.astream(graph_input, config=config, stream_mode="updates"):
+            if "__interrupt__" in chunk:
+                interrupt_chunk = chunk["__interrupt__"]
+            await queue.put(("chunk", chunk))
+
+        snapshot = await graph.aget_state(config)
+        result = dict(snapshot.values)
+        result["thread_id"] = thread_id
+        if interrupt_chunk is not None:
+            result["__interrupt__"] = interrupt_chunk
+        await _finalize_turn(thread_id, result)
+        await queue.put(("done", result))
+    except Exception as error:
+        logger.exception("Streamed turn failed for thread %s", thread_id)
+        await queue.put(("error", error))
+
+
+async def _stream_turn(graph_input, thread_id: str) -> AsyncIterator[dict]:
+    """Drive one graph turn as a detached task, yielding its chunks live.
+
+    The task keeps running even if the caller stops iterating (e.g. an HTTP
+    client disconnects), so `_finalize_turn` always runs exactly once.
+    """
+
+    graph = await get_graph()
+    config: dict = {"configurable": {"thread_id": thread_id}}
+    queue: asyncio.Queue = asyncio.Queue()
+    task = asyncio.create_task(_drain_graph(graph, config, graph_input, thread_id, queue))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+    while True:
+        kind, payload = await queue.get()
+        yield {"kind": kind, "payload": payload}
+        if kind in ("done", "error"):
+            return
+
+
+async def stream_send_message(user_input: str, thread_id: str | None = None) -> AsyncIterator[dict]:
+    """Stream one turn's per-node progress, then its final result.
+
+    Mirrors `send_message`'s setup exactly; only the execution/notification
+    mechanism differs (astream + queue instead of one blocking ainvoke).
+    """
+
+    thread_id = thread_id or str(uuid4())
+    await create_thread(thread_id)
+    await _save_message(thread_id, "user", user_input)
+    project = await get_project(thread_id)
+    graph_input = new_state(user_input, thread_id=thread_id, project=project)
+    async for item in _stream_turn(graph_input, thread_id):
+        yield item
+
+
+async def stream_resume_thread(
+    thread_id: str,
+    approved: bool,
+    payment_method_id: str | None = None,
+) -> AsyncIterator[dict]:
+    """Stream a paused thread's resumption the same way `stream_send_message` does."""
+
+    command = Command(
+        resume={"approved": approved, "payment_method_id": payment_method_id}
+    )
+    async for item in _stream_turn(command, thread_id):
+        yield item
 
 
 async def get_graph():

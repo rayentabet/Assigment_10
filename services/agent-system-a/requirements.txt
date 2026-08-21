@@ -2,6 +2,11 @@
 # Kept in sync with pyproject.toml, which is what local development installs
 # in editable mode; the container installs from this file so the service is
 # independently buildable without the packaging metadata.
+#
+# pandas and streamlit are deliberately absent: they are imported only by
+# evaluation/dashboard.py, which runs on the host, never inside this service.
+# Leaving them out keeps pyarrow/numpy/altair out of the image, which matters
+# because the pip install has to fit in Docker's memory budget.
 
 ap2 @ git+https://github.com/google-agentic-commerce/AP2.git@e1ea56db72a6385bce3e5c1112b3a56ce60acb43
 a2a-sdk>=1,<2
@@ -19,10 +24,8 @@ langchain-openai>=0.3
 langgraph>=0.4
 langgraph-checkpoint-sqlite>=3.0.1,<4
 nemoguardrails>=0.21,<1
-pandas>=2,<3
 pillow>=10,<14
 pydantic>=2.10
 pydantic-settings>=2.7
 python-dotenv>=1.0
-streamlit>=1.40,<2
 uvicorn[standard]>=0.34,<1

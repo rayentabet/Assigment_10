@@ -23,7 +23,7 @@ def test_health() -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_sandbox_card_is_exchanged_for_opaque_credential() -> None:
+def test_raw_sandbox_card_route_is_disabled_for_lithic() -> None:
     response = client.post(
         "/payments/sandbox/tokenize",
         json={
@@ -33,13 +33,15 @@ def test_sandbox_card_is_exchanged_for_opaque_credential() -> None:
         },
     )
 
+    assert response.status_code == 404
+
+
+def test_payment_config_never_exposes_provider_secrets() -> None:
+    response = client.get("/payments/config")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["credential_id"].startswith("cp_test_")
-    assert payload["last4"] == "4242"
-    assert "card_number" not in payload
-    assert "cvv" not in payload
-    assert "expiry" not in payload
+    assert payload == {"provider": "lithic"}
+    assert "api_key" not in repr(payload).lower()
 
 
 def test_create_thread(monkeypatch) -> None:

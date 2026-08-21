@@ -82,11 +82,15 @@ export interface DigiKeyConnectionStatus {
 }
 
 export interface PaymentCredential {
-  credential_id: string;
+  payment_method_id: string;
+  display: string;
   brand: string;
-  last4: string;
-  expires_at: number;
+  last4: string | null;
   sandbox: boolean;
+}
+
+export interface PaymentConfig {
+  provider: "sandbox" | "lithic";
 }
 
 export interface SandboxCard {
@@ -126,6 +130,34 @@ export interface ChatResponse {
   tool_trace: ToolTraceEntry[];
   route_history: string[];
 }
+
+// Mirrors app/api/main.py's STREAM_UPDATE_FIELDS allowlist and _sse_frame.
+export interface StreamNodeFrame {
+  type: "node";
+  node: string;
+  update: Partial<{
+    tool_trace: ToolTraceEntry[];
+    route_history: string[];
+    next_agent: string;
+    completed_tasks: string[];
+    project: Record<string, unknown>;
+    final_answer: string | null;
+    image_paths: string[];
+    iteration_count: number;
+    input_blocked: boolean;
+  }>;
+}
+
+export interface StreamDoneFrame extends ChatResponse {
+  type: "done";
+}
+
+export interface StreamErrorFrame {
+  type: "error";
+  message: string;
+}
+
+export type StreamFrame = StreamNodeFrame | StreamDoneFrame | StreamErrorFrame;
 
 export interface TranscriptionResponse {
   text: string;

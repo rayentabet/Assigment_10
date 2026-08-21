@@ -1,10 +1,13 @@
 .app-layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 320px;
+  grid-template-columns: 248px minmax(0, 1fr) 320px;
+  gap: 0.75rem;
   height: 100vh;
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
+  padding: 0.75rem;
+  background: transparent;
 }
 
 .app-main {
@@ -14,17 +17,49 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
 }
 
 .app-header {
   flex: 0 0 auto;
-  padding: 1rem 1.5rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.9rem 1.5rem;
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.app-logo {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: var(--accent-fg);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-header-text {
+  min-width: 0;
 }
 
 .app-header h1 {
-  font-size: 1.1rem;
-  margin: 0 0 0.15rem;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.app-header .muted {
+  font-size: 0.78rem;
+  margin: 0.1rem 0 0;
 }
 
 .startup-error {

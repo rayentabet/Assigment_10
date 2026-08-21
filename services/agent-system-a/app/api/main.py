@@ -1,20 +1,23 @@
 """FastAPI application exposing the multi-agent chat service."""
 
+import json
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 from uuid import uuid4
 
+import httpx
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 
 from app.api.schemas import (
     ApprovalDecision,
     ApprovalRequest,
     ChatRequest,
     ChatResponse,
+    PaymentConfig,
     PaymentCredential,
     PurchaseProposal,
     SandboxCardRequest,
@@ -36,21 +39,16 @@ from app.chat_service import (
     resume_thread,
     send_message,
     shutdown,
+    stream_resume_thread,
+    stream_send_message,
 )
 from app.chat_service import (
     get_artifact as find_artifact,
 )
 from app.config import settings
-from app.payment_vault import CredentialError, forget, tokenize
+from app.payment_vault import CredentialError, forget, provider, public, tokenize
 from app.payment_vault import clear as clear_payment_vault
 from app.transcription import transcribe_audio
-from component_manager.oauth import (
-    OAuthError,
-    authorization_url,
-    connection_status,
-    disconnect,
-    exchange_code,
-)
 
 
 @asynccontextmanager
@@ -90,15 +88,24 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def _component_manager_rest_client() -> httpx.AsyncClient:
+    """A client for System B's REST API, used only by the DigiKey OAuth proxy below."""
+
+    return httpx.AsyncClient(base_url=settings.component_manager_rest_url, timeout=30.0)
+
+
 @app.get("/auth/digikey/start", response_class=RedirectResponse)
 async def start_digikey_oauth() -> RedirectResponse:
     """Redirect the user's browser to DigiKey sandbox login and consent."""
 
     try:
-        url = await authorization_url()
-    except OAuthError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
-    return RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
+        async with _component_manager_rest_client() as client:
+            response = await client.get("/oauth/digikey/authorize")
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=503, detail="Component Manager is unreachable.") from error
+    if response.status_code != status.HTTP_200_OK:
+        raise HTTPException(status_code=503, detail=response.json().get("detail", response.text))
+    return RedirectResponse(url=response.json()["url"], status_code=status.HTTP_302_FOUND)
 
 
 @app.get("/auth/digikey/callback", response_class=HTMLResponse)
@@ -117,9 +124,14 @@ async def finish_digikey_oauth(
     if not code or not state_value:
         raise HTTPException(status_code=400, detail="Missing DigiKey OAuth code or state.")
     try:
-        await exchange_code(code, state_value)
-    except OAuthError as oauth_error:
-        raise HTTPException(status_code=400, detail=str(oauth_error)) from oauth_error
+        async with _component_manager_rest_client() as client:
+            response = await client.post(
+                "/oauth/digikey/callback", json={"code": code, "state": state_value}
+            )
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=503, detail="Component Manager is unreachable.") from error
+    if response.status_code != status.HTTP_204_NO_CONTENT:
+        raise HTTPException(status_code=400, detail=response.json().get("detail", response.text))
     return HTMLResponse(
         "<h1>DigiKey sandbox connected</h1>"
         "<p>The tokens were encrypted on the backend. You may close this tab and return "
@@ -131,18 +143,22 @@ async def finish_digikey_oauth(
 async def digikey_oauth_status() -> dict:
     """Tell React whether a sandbox account is connected without exposing tokens."""
 
-    return await connection_status()
+    async with _component_manager_rest_client() as client:
+        response = await client.get("/oauth/digikey/status")
+    response.raise_for_status()
+    return response.json()
 
 
 @app.delete("/auth/digikey/connection", status_code=status.HTTP_204_NO_CONTENT)
 async def disconnect_digikey() -> Response:
     """Delete locally stored DigiKey OAuth tokens."""
 
-    await disconnect()
+    async with _component_manager_rest_client() as client:
+        response = await client.delete("/oauth/digikey/connection")
+    response.raise_for_status()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.post("/payments/sandbox/tokenize", response_model=PaymentCredential)
 async def tokenize_sandbox_card(request: SandboxCardRequest) -> PaymentCredential:
     """Exchange AP2 test-card fields for an ephemeral, proposal-bound reference."""
 
@@ -155,6 +171,32 @@ async def tokenize_sandbox_card(request: SandboxCardRequest) -> PaymentCredentia
     except CredentialError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return PaymentCredential.model_validate(credential)
+
+
+if settings.payment_provider == "sandbox":
+    app.add_api_route(
+        "/payments/sandbox/tokenize",
+        tokenize_sandbox_card,
+        methods=["POST"],
+        response_model=PaymentCredential,
+    )
+
+
+@app.get("/payments/config", response_model=PaymentConfig)
+async def payment_config() -> PaymentConfig:
+    """Expose only browser-safe provider configuration."""
+    return PaymentConfig(
+        provider=settings.payment_provider,
+    )
+
+
+@app.post("/payments/lithic/methods", response_model=PaymentCredential)
+async def create_lithic_method() -> PaymentCredential:
+    """Create a safe local handle; the Lithic card is issued only after AP2 approval."""
+    if settings.payment_provider != "lithic":
+        raise HTTPException(status_code=404, detail="Lithic payments are not enabled.")
+    method = provider.create_payment_method()
+    return PaymentCredential.model_validate(public(method))
 
 
 @app.delete(
@@ -300,7 +342,7 @@ async def resume_message(thread_id: str, decision: ApprovalDecision) -> ChatResp
         result = await resume_thread(
             thread_id,
             decision.approved,
-            payment_credential_id=decision.payment_credential_id,
+            payment_method_id=decision.payment_method_id,
         )
     except Exception as exc:
         logger.exception("resume_thread failed for thread %s", thread_id)
@@ -309,6 +351,85 @@ async def resume_message(thread_id: str, decision: ApprovalDecision) -> ChatResp
             detail="The thread has no resumable approval request.",
         ) from exc
     return await chat_response(result)
+
+
+STREAM_UPDATE_FIELDS = {
+    "tool_trace",
+    "route_history",
+    "next_agent",
+    "completed_tasks",
+    "project",
+    "final_answer",
+    "image_paths",
+    "iteration_count",
+    "input_blocked",
+}
+
+
+async def _sse_frame(item: dict) -> str:
+    """Format one streamed chat_service item as an SSE `data:` line.
+
+    `item["kind"]` is `"chunk"` (a raw LangGraph node update, or the
+    standalone `{"__interrupt__": ...}` marker), `"done"` (a complete turn,
+    shaped exactly like `send_message`/`resume_thread`'s return value), or
+    `"error"` (an unhandled exception from the graph run itself).
+    """
+
+    kind, payload = item["kind"], item["payload"]
+
+    if kind == "chunk":
+        if "__interrupt__" in payload:
+            # The terminal "done" frame already carries status:
+            # "approval_required" with the full approval/proposal payload;
+            # a bare interrupt marker has nothing new to tell the client.
+            return ""
+        node, update = next(iter(payload.items()))
+        update = update or {}
+        frame = {
+            "type": "node",
+            "node": node,
+            "update": {key: update[key] for key in STREAM_UPDATE_FIELDS if key in update},
+        }
+    elif kind == "done":
+        response = await chat_response(payload)
+        frame = {"type": "done", **response.model_dump(mode="json")}
+    else:
+        # chat_service already logged the exception with its traceback;
+        # the client only needs to know the turn failed.
+        frame = {"type": "error", "message": "The agent could not process the message."}
+
+    return f"data: {json.dumps(frame)}\n\n"
+
+
+SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+@app.post("/threads/{thread_id}/messages/stream")
+async def post_message_stream(thread_id: str, request: ChatRequest) -> StreamingResponse:
+    """Stream one turn's per-node progress, then its final result, over SSE."""
+
+    async def event_generator() -> AsyncIterator[str]:
+        async for item in stream_send_message(request.message.strip(), thread_id=thread_id):
+            frame = await _sse_frame(item)
+            if frame:
+                yield frame
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+@app.post("/threads/{thread_id}/resume/stream")
+async def resume_message_stream(thread_id: str, decision: ApprovalDecision) -> StreamingResponse:
+    """Stream a paused thread's resumption the same way `post_message_stream` does."""
+
+    async def event_generator() -> AsyncIterator[str]:
+        async for item in stream_resume_thread(
+            thread_id, decision.approved, payment_method_id=decision.payment_method_id
+        ):
+            frame = await _sse_frame(item)
+            if frame:
+                yield frame
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream", headers=SSE_HEADERS)
 
 
 async def chat_response(result: dict) -> ChatResponse:

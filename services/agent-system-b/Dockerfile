@@ -31,4 +31,5 @@ EXPOSE 8002 8003
 
 # `wait -n` returns as soon as either server exits, so the container stops
 # instead of lingering half-dead with only one surface still answering.
-CMD ["sh", "-c", "python -m uvicorn component_manager.server:app --host 0.0.0.0 --port 8002 & python -m uvicorn component_manager.rest_api:app --host 0.0.0.0 --port 8003 & wait -n"]
+# Needs bash: /bin/sh is dash here, which has no `-n` flag for wait.
+CMD ["bash", "-c", "python -m uvicorn component_manager.server:app --host 0.0.0.0 --port 8002 & python -m uvicorn component_manager.rest_api:app --host 0.0.0.0 --port 8003 & wait -n"]

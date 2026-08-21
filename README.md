@@ -1,246 +1,162 @@
-# Robotics Multi-Agent MCP System
+# Robotics Multi-Agent Assistant
 
-This project coordinates four robotics specialists through a LangGraph supervisor:
+A robotics assistant composed of four independently deployable application
+services plus Qdrant:
 
-- an MCP-backed robotics RAG agent;
-- a code generation and validation agent;
-- a wiring and pin management agent;
-- a 3D robot visualization agent (build123d, no external CAD binary).
+```text
+React frontend (:5173)
+        |
+        v
+Agent System A / FastAPI + LangGraph (:8010)
+        |----------------------|
+        v                      v
+Agent System B / ADK       RAG MCP server (:8001)
+A2A (:8002), REST (:8003)      |
+                               v
+                         Qdrant (:6333)
+```
 
-For inventory, pricing, and purchasing, the supervisor routes directly to a
-dedicated A2A relay node. That node contacts the independent Google ADK
-Component Manager; it does not add another local model between the systems.
+## Repository structure
 
-The Arduino RAG MCP server runs as a Dockerized Streamable HTTP service. Both
-LangGraph and OpenCode connect to the same network endpoint rather than starting
-separate MCP subprocesses over stdio.
+```text
+services/
+├── agent-system-a/   FastAPI, LangGraph, specialist agents, AP2 and payments
+├── agent-system-b/   ADK Component Manager, DigiKey OAuth and ordering
+├── mcp-server/       Arduino RAG runtime, corpus assets, snapshot and MCP API
+└── frontend/         React, TypeScript and Vite UI
+tests/                Backend, graph, payment, MCP and System B tests
+evaluation/           Golden datasets, evaluator, dashboard and saved runs
+docs/                 Architecture, payment and deployment documentation
+scripts/              Small project utilities
+docker-compose.yml    Complete local stack
+pyproject.toml        Shared Python development and test configuration
+```
 
-The Component Manager (System B) is a separate, independently deployed Google
-ADK agent — see [component_manager/README.md](component_manager/README.md).
-This app only holds an A2A client to it (`app/integrations/component_client.py`); there
-is no other coupling to that service's code or database.
+Runtime databases, generated artifacts, caches, virtual environments,
+frontend dependencies and secrets are ignored by Git.
 
 ## Prerequisites
 
-- Python 3.11 or newer
-- Qdrant and the existing Assignment 8 RAG dependencies
+- Docker Desktop with Docker Compose
+- Node.js 20+ when running the frontend locally
+- Python 3.11+ for local tests and evaluation
 
-## Initial setup
+## Configuration
+
+Create the root environment file and System B environment file:
 
 ```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e '.[dev]'
 cp .env.example .env
+cp services/agent-system-b/.env.example services/agent-system-b/.env
+```
+
+Fill in the required API keys. Never commit either `.env` file. The current
+payment implementation uses Lithic Sandbox:
+
+```env
+APP_ENVIRONMENT=development
+PAYMENT_PROVIDER=lithic
+LITHIC_API_KEY=your_sandbox_key
+LITHIC_BASE_URL=https://sandbox.lithic.com/v1
+```
+
+DigiKey OAuth secrets remain encrypted inside System B. Payment credentials and
+provider references never enter LangGraph state or model-visible messages.
+
+## Start the backend stack
+
+The frontend is normally run locally in this project. Start the backend
+services with:
+
+```bash
+docker compose up -d --build vector-db mcp-server agent-system-b agent-system-a
+docker compose ps
+curl http://localhost:8010/health
+```
+
+Agent System A is exposed on `http://localhost:8010`. Rebuild only it after a
+backend change:
+
+```bash
+docker compose up -d --build agent-system-a
+```
+
+View logs with:
+
+```bash
+docker compose logs -f agent-system-a
+```
+
+## Start the frontend locally
+
+```bash
+cd services/frontend
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+The frontend should use:
+
+```env
+VITE_API_BASE_URL=http://localhost:8010
+```
+
+Open `http://localhost:5173`.
+
+## Verification
+
+Run the Python suite from the repository root:
+
+```bash
+source .venv/bin/activate
 pytest
 ```
 
-Add API keys to `.env`; never commit that file.
-
-Generate a bearer token for the MCP server and add it as `MCP_AUTH_TOKEN` in
-`.env`:
+Check and build the frontend:
 
 ```bash
-openssl rand -hex 32
+cd services/frontend
+npm run build
 ```
 
-## Development order
-
-1. Test the RAG tools in `mcp_server/server.py`.
-2. Implement restricted code and 3D model tools.
-3. Implement each specialist independently.
-4. Assemble the supervisor graph.
-5. Run the evaluation suite and document routing failures.
-
-## Generated files
-
-Code is confined to `generated/code/`. Model JSON and its SVG and PNG previews
-are confined to `generated/robots/<model-name>/`.
-
-## Documentation
-
-- [Project proposal](docs/proposal/PROJECT_PROPOSAL.md)
-- [Submission PDF](docs/proposal/PROJECT_PROPOSAL.pdf)
-- [Compiled LangGraph diagram](docs/architecture/langgraph_workflow.svg)
-- [Detailed code walkthrough](docs/CODE_WALKTHROUGH.md)
-- [Component Manager](component_manager/README.md)
-- [React frontend](web/README.md)
-- [Dockerizing the stack (manual + compose)](docs/DOCKER_SETUP.md)
-
-## Evaluation dashboard
-
-Each evaluation is saved under `evaluation/runs/<timestamp>_<run-name>/` with
-its `results.csv` and `metadata.json`. The latest results are also written to
-`evaluation/results.csv`.
-
-Run an evaluation from the terminal:
+Validate Compose without starting containers:
 
 ```bash
-PYTHONPATH=. .venv/bin/python evaluation/run_evaluation.py --run-name baseline
+docker compose config --quiet
 ```
 
-Open the saved runs in Streamlit:
+## Evaluation
+
+Saved agent runs live under `evaluation/runs/`; imported RAG runs live under
+`evaluation/rag_runs/`. Both are intentionally retained. Run a new agent
+evaluation from the repository root:
+
+```bash
+PYTHONPATH=services/agent-system-a:services/agent-system-b \
+  .venv/bin/python evaluation/run_evaluation.py --run-name baseline
+```
+
+Open the dashboard with:
 
 ```bash
 .venv/bin/streamlit run evaluation/dashboard.py
 ```
 
-## Human approval checkpoint
+## Documentation
 
-The `human_approval` graph node pauses before `coding_agent` or
-`robot_visualization_agent` runs, because those specialists can write generated
-files or start a 3D render. The CLI shows the pending action and
-resumes the same checkpointed thread with `Command(resume={"approved": ...})`.
+- [Docker setup](docs/DOCKER_SETUP.md)
+- [Lithic/AP2 payment flow](docs/LITHIC_PAYMENT.md)
+- [Code walkthrough](docs/CODE_WALKTHROUGH.md)
+- [Architecture diagram](docs/architecture/langgraph_workflow.svg)
+- [Frontend details](services/frontend/README.md)
+- [System B details](services/agent-system-b/component_manager/README.md)
 
-Try it with:
-
-```bash
-PYTHONPATH=. .venv/bin/python -m app.cli
-```
-
-Enter `Create a 3D model of a two-wheeled robot`. At the approval prompt,
-answer `n` to verify cancellation, then run it again and answer `y` to continue.
-Read-only routes such as `Explain how an ultrasonic sensor works` do not pause.
-
-## RAG MCP tools
-
-The server currently exposes:
-
-- `search_documents`: retrieve reranked contexts and their source metadata;
-- `answer_question`: generate a grounded answer and return its contexts;
-- `show_image`: display the image referenced by a retrieved `image_path`;
-- `corpus://metadata`: describe the corpus and retrieval capabilities.
-
-`show_image` only accepts supported image files inside the configured
-`RAG_PROJECT_PATH`. Pass it the path exactly as returned by a search or answer.
-
-## Dockerized HTTP MCP server
-
-Qdrant must already be running with host port `6333` published. The Compose
-configuration connects to it from Docker through
-`http://host.docker.internal:6333` and injects the Assignment 8 and Assignment
-10 `.env` files at runtime. Neither `.env` is copied into the image;
-`Dockerfile.dockerignore` excludes secrets, Git metadata, virtual environments,
-caches, generated output, and the local Qdrant snapshot.
-
-The build context must be the parent `InMind` directory because the image needs
-code from both assignments. The container installs the narrow dependency set in
-`mcp_server/requirements-http.txt`, rather than installing the evaluation UI and
-multi-agent application packages that the MCP process does not use. Compose
-handles the parent build context automatically:
-
-```bash
-docker compose up --build -d mcp-server
-docker compose logs -f mcp-server
-```
-
-The MCP endpoint is then available at:
-
-```text
-http://127.0.0.1:8001/mcp
-```
-
-Verify MCP tool discovery over the network:
-
-```bash
-MCP_INTEGRATION_TEST_URL=http://127.0.0.1:8001/mcp \
-  MCP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
-  .venv/bin/pytest tests/test_mcp_connection.py
-```
-
-The HTTP endpoint requires `Authorization: Bearer <token>`. LangGraph reads the
-token from `.env`, while OpenCode expands `{env:MCP_AUTH_TOKEN}` in
-`opencode.json`; export the variable before starting OpenCode:
-
-```bash
-export MCP_AUTH_TOKEN="your-generated-token"
-opencode mcp list
-```
-
-The token prevents clients without the shared secret from listing resources or
-calling tools. It does not encrypt traffic, replace HTTPS for a remote
-deployment, protect a token exposed in logs or a compromised client, provide
-per-user permissions, or make the tools themselves safe. The included static
-token verifier is appropriate for this local demonstration; production should
-use HTTPS and short-lived OAuth/JWT tokens with issuer, audience, expiry, and
-scope validation.
-
-Run the multi-agent CLI only after the container is ready:
-
-```bash
-PYTHONPATH=. .venv/bin/python -m app.cli
-```
-
-## FastAPI chat service
-
-FastAPI is the main application interface. Start it after the MCP server is ready:
-
-```bash
-PYTHONPATH=. .venv/bin/uvicorn app.api.main:app --host localhost --port 8000 \
-  --ssl-keyfile certs/localhost-key.pem --ssl-certfile certs/localhost.pem
-```
-
-Interactive API documentation is available at `https://localhost:8000/docs`.
-
-The DigiKey sandbox Ordering integration uses three-legged OAuth. Open the
-React activity panel and choose **Connect DigiKey** before approving a sandbox
-order. DigiKey login credentials remain on DigiKey's site; this application
-stores only encrypted, rotating OAuth tokens in System B's SQLite database.
-Create a thread, then send messages using its returned ID:
-
-Conversation checkpoints are persisted in `data/chat_history.sqlite` by default,
-so thread state and paused approval requests survive API restarts. Override the
-location with `CHAT_DATABASE_PATH` in `.env`.
-
-```bash
-curl -X POST http://127.0.0.1:8000/threads
-
-curl -X POST http://127.0.0.1:8000/threads/THREAD_ID/messages \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"Explain how an ultrasonic sensor works"}'
-```
-
-Retrieve the public user/assistant history for that thread:
-
-```bash
-curl http://127.0.0.1:8000/threads/THREAD_ID/messages
-```
-
-Delete the thread, its public history, artifacts, and LangGraph checkpoints:
-
-```bash
-curl -X DELETE http://127.0.0.1:8000/threads/THREAD_ID
-```
-
-If the response status is `approval_required`, continue the same checkpoint:
-
-```bash
-curl -X POST http://127.0.0.1:8000/threads/THREAD_ID/resume \
-  -H 'Content-Type: application/json' \
-  -d '{"approved":true}'
-```
-
-## React frontend
-
-The primary UI — see [web/README.md](web/README.md) for full setup. Keep
-FastAPI running, then in a second terminal:
-
-```bash
-cd web
-npm install
-npm run dev
-```
-
-It creates and retains a thread ID (in `localStorage`, so it survives page
-reloads), reloads history, sends chat messages through FastAPI, and shows
-approval controls for both paused coding/visualization actions and pending
-purchase proposals, plus a wiring-plan table and tool-activity trace for the
-last turn. `app/config.py`'s `cors_allowed_origins` must include the dev
-server's origin (`http://localhost:5173` by default).
-
-Stop the MCP service without affecting the separately running Qdrant container:
+## Stop services
 
 ```bash
 docker compose down
 ```
+
+Do not add `-v` unless you intentionally want to delete persistent Qdrant,
+chat, generated-artifact and System B data volumes.

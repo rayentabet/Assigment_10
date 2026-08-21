@@ -166,7 +166,13 @@ def _variation(product: dict, quantity: int) -> dict:
     for variation in variations:
         price = _price(variation.get("StandardPricing") or [], quantity)
         candidates.append((price is None, price or float("inf"), variation))
-    return min(candidates, default=(True, float("inf"), {}))[2]
+    # Compare only scalar ranking fields. Tied candidates must not fall
+    # through to comparing their raw dictionaries, which are not orderable.
+    return min(
+        candidates,
+        key=lambda candidate: candidate[:2],
+        default=(True, float("inf"), {}),
+    )[2]
 
 
 def normalize_product(product: dict, quantity: int) -> dict:

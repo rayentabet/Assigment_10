@@ -89,8 +89,20 @@ function App() {
       />
       <main className="app-main">
         <header className="app-header">
-          <h1>Robotics Multi-Agent Assistant</h1>
-          <p className="muted">FastAPI + LangGraph + A2A Component Manager</p>
+          <div className="app-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+              <rect x="7" y="3" width="10" height="7" rx="2" stroke="currentColor" strokeWidth="1.6" />
+              <circle cx="9.5" cy="6.5" r="1" fill="currentColor" />
+              <circle cx="14.5" cy="6.5" r="1" fill="currentColor" />
+              <path d="M12 10v2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              <rect x="4" y="12.5" width="16" height="8" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M8 16.5h.01M12 16.5h.01M16 16.5h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div className="app-header-text">
+            <h1>Robotics Multi-Agent Assistant</h1>
+            <p className="muted">FastAPI + LangGraph + A2A Component Manager</p>
+          </div>
         </header>
         <ChatPanel conversation={conversation} />
       </main>

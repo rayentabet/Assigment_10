@@ -20,6 +20,13 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Every external call needs a bound, including calls to our own other
+# service (A2A already has one via settings.a2a_timeout_seconds) - these were
+# previously unbounded, so a stalled provider connection could hang a graph
+# turn indefinitely instead of failing and letting the OpenRouter fallback
+# (or a clear error) take over.
+MODEL_REQUEST_TIMEOUT_SECONDS = 60.0
+
 
 @lru_cache(maxsize=1)
 def _warn_fallback_disabled() -> None:
@@ -52,6 +59,7 @@ def _with_fallback(primary: BaseChatModel) -> BaseChatModel:
         api_key=settings.openrouter_api_key,
         base_url=settings.openrouter_base_url,
         temperature=0,
+        request_timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
     )
     return primary.with_fallbacks([fallback])
 
@@ -59,40 +67,94 @@ def _with_fallback(primary: BaseChatModel) -> BaseChatModel:
 def supervisor_model() -> BaseChatModel:
     """Routing model used by the supervisor node."""
 
-    return _with_fallback(ChatGroq(model=settings.supervisor_model, temperature=0))
+    return _with_fallback(
+        ChatGroq(
+            model=settings.supervisor_model,
+            temperature=0,
+            request_timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
+        )
+    )
 
 
 def guardrail_model() -> BaseChatModel:
     """Safety model backing the NeMo input/output rails."""
 
-    return _with_fallback(ChatGroq(model=settings.guardrail_model, temperature=0))
+    return _with_fallback(
+        ChatGroq(
+            model=settings.guardrail_model,
+            temperature=0,
+            request_timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
+        )
+    )
 
 
 def rag_model() -> BaseChatModel:
     """Model used by the documentation RAG specialist."""
 
-    return _with_fallback(ChatGoogleGenerativeAI(model=settings.rag_model, temperature=0))
+    return _with_fallback(
+        ChatGoogleGenerativeAI(
+            model=settings.rag_model,
+            temperature=0,
+            timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
+        )
+    )
 
 
 def code_model() -> BaseChatModel:
     """Model used by the coding specialist."""
 
-    return _with_fallback(ChatGroq(model=settings.code_model, temperature=0))
+    return _with_fallback(
+        ChatGroq(
+            model=settings.code_model,
+            temperature=0,
+            request_timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
+        )
+    )
 
 
 def wiring_model() -> BaseChatModel:
     """Model used by the wiring and pin-management specialist."""
 
-    return _with_fallback(ChatGroq(model=settings.wiring_model, temperature=0))
+    return _with_fallback(
+        ChatGroq(
+            model=settings.wiring_model,
+            temperature=0,
+            request_timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
+        )
+    )
 
 
 def visualization_model() -> BaseChatModel:
     """Model used by the robot visualization specialist."""
 
-    return _with_fallback(ChatGoogleGenerativeAI(model=settings.visualization_model, temperature=0))
+    return _with_fallback(
+        ChatGoogleGenerativeAI(
+            model=settings.visualization_model,
+            temperature=0,
+            timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
+        )
+    )
 
 
 def title_model() -> BaseChatModel:
     """Small model used to generate a short chat title after the first turn."""
 
-    return _with_fallback(ChatGroq(model=settings.title_model, temperature=0))
+    return _with_fallback(
+        ChatGroq(
+            model=settings.title_model,
+            temperature=0,
+            request_timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
+        )
+    )
+
+
+def judge_model() -> BaseChatModel:
+    """Model used by the evaluation harness to grade task completion."""
+
+    return _with_fallback(
+        ChatGroq(
+            model=settings.judge_model,
+            temperature=0,
+            request_timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
+        )
+    )

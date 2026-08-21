@@ -26,8 +26,10 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="sidebar-section">
         <h2>Conversation</h2>
-        <code className="thread-id">{currentThreadId ?? "…"}</code>
         <button type="button" onClick={onNewChat} className="sidebar-button primary">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" />
+          </svg>
           New chat
         </button>
         <button
@@ -78,7 +80,6 @@ export function Sidebar({
                 disabled={thread.thread_id === currentThreadId}
                 onClick={() => onSelectThread(thread.thread_id)}
               >
-                {thread.thread_id === currentThreadId ? "● " : ""}
                 {thread.title}
               </button>
             </li>

@@ -198,7 +198,10 @@ def render_model(model_path: str) -> dict:
     user, and preview.svg, the same view as scalable vector artwork.
     """
 
-    path = _resolved_model_path(model_path)
+    try:
+        path = _resolved_model_path(model_path)
+    except (ValueError, FileNotFoundError) as error:
+        return _failure(Path(model_path), str(error))
     preview_path = path.with_name("preview.png")
     vector_path = path.with_name("preview.svg")
 

@@ -16,6 +16,8 @@ from app.chat_service import resume_thread, send_message
 from app.config import settings
 from app.guardrails import BLOCKED_MESSAGE
 from evaluation.comparators import aggregate_summary, call_entries, compare_case
+from evaluation.cost_tracking import UsageCollector
+from evaluation.judge import judge_task_completion
 
 HERE = Path(__file__).parent
 DATASET = HERE / "golden_dataset" / "v2" / "cases.jsonl"
@@ -92,10 +94,11 @@ async def _invoke_case(case: dict) -> dict:
     result: dict = {}
     thread_id: str | None = None
     turns = case.get("turns") or [{"query": case["query"]}]
+    collector = UsageCollector()
 
     for turn in turns:
         if "query" in turn:
-            result = await send_message(turn["query"], thread_id=thread_id)
+            result = await send_message(turn["query"], thread_id=thread_id, callbacks=[collector])
             thread_id = result["thread_id"]
             operation = "query"
         elif "resume" in turn:
@@ -105,7 +108,8 @@ async def _invoke_case(case: dict) -> dict:
             result = await resume_thread(
                 thread_id or "",
                 decision,
-                payment_credential_id=turn["resume"].get("payment_credential_id"),
+                payment_method_id=turn["resume"].get("payment_method_id"),
+                callbacks=[collector],
             )
             operation = "resume"
         else:
@@ -136,6 +140,7 @@ async def _invoke_case(case: dict) -> dict:
         "approvals": approvals,
         "steps": steps,
         "guardrail": guardrail_outcome(case, result, answer),
+        "usage": collector.usage_summary(),
         "error": None,
     }
 
@@ -169,6 +174,9 @@ async def execute_case(case: dict) -> dict:
 
 def public_result(case: dict, execution: dict, comparison: dict, duration_ms: float) -> dict:
     state = execution.get("result", {})
+    iteration_count = state.get("iteration_count", 0)
+    min_steps = case["expected"].get("min_steps")
+    usage = execution.get("usage", {})
     return {
         "id": case["id"],
         "category": case["category"],
@@ -183,13 +191,23 @@ def public_result(case: dict, execution: dict, comparison: dict, duration_ms: fl
         "expected_guardrail": case["expected"].get("guardrail"),
         "actual_guardrail": execution.get("guardrail"),
         "duration_ms": round(duration_ms, 3),
-        "iteration_count": state.get("iteration_count", 0),
+        "iteration_count": iteration_count,
+        "min_steps": min_steps,
+        "step_efficiency_ratio": (
+            round(iteration_count / min_steps, 3) if min_steps else None
+        ),
         "answer": execution.get("answer", ""),
         "approvals": execution.get("approvals", []),
         "steps": execution.get("steps", []),
         "tool_calls": call_entries(execution.get("tool_trace", [])),
         "tool_trace": execution.get("tool_trace", []),
         "project": state.get("project", {}),
+        "total_input_tokens": usage.get("total_input_tokens", 0),
+        "total_output_tokens": usage.get("total_output_tokens", 0),
+        "total_tokens": usage.get("total_tokens", 0),
+        "cost_usd": usage.get("cost_usd"),
+        "unpriced_models": usage.get("unpriced_models", []),
+        "tokens_by_node": usage.get("tokens_by_node", {}),
         "error": execution.get("error"),
         **comparison,
     }
@@ -203,6 +221,7 @@ def error_execution(error: Exception) -> dict:
         "approvals": [],
         "steps": [],
         "guardrail": "error",
+        "usage": UsageCollector().usage_summary(),
         "error": f"{type(error).__name__}: {error}",
     }
 
@@ -228,10 +247,15 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         "project_correct",
         "cross_check_correct",
         "recovery_correct",
+        "task_completion_correct",
         "expected_routes",
         "actual_routes",
         "duration_ms",
         "iteration_count",
+        "min_steps",
+        "step_efficiency_ratio",
+        "total_tokens",
+        "cost_usd",
         "failures",
     ]
     with path.open("w", newline="", encoding="utf-8") as output:
@@ -274,6 +298,7 @@ async def main() -> None:
             "coding": settings.code_model,
             "wiring": settings.wiring_model,
             "visualization": settings.visualization_model,
+            "judge": settings.judge_model,
         },
     }
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
@@ -286,6 +311,7 @@ async def main() -> None:
             except Exception as error:  # noqa: BLE001 - one failed case must not end the run
                 execution = error_execution(error)
             comparison = compare_case(case, execution)
+            comparison = {**comparison, **await judge_task_completion(case, execution)}
             result = public_result(
                 case, execution, comparison, (time.perf_counter() - started_case) * 1000
             )
@@ -312,6 +338,12 @@ async def main() -> None:
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     passed = summary["metrics"]["case_pass"]["passed"]
     print(f"\nCases passed: {passed}/{len(results)}")
+    if summary["unpriced_models"]:
+        print(
+            "Cost tracking incomplete: no pricing for "
+            f"{', '.join(summary['unpriced_models'])} in evaluation/cost_tracking.py"
+            " (cost_usd is None for cases using them)"
+        )
     print(f"Saved run: {run_directory}")
 
 

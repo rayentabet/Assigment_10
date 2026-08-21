@@ -73,17 +73,19 @@ def test_save_model_rejects_empty_parts(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_render_model_rejects_path_outside_robot_folder(tmp_path: Path, monkeypatch) -> None:
+    # render_model must degrade to a normal tool failure, not raise, for any
+    # bad path (invalid path, missing file, wrong extension): it runs inside
+    # an agent loop, and an uncaught exception here crashes the whole turn
+    # instead of letting the model see the error and respond.
     monkeypatch.setattr(model_tools, "ROBOT_FOLDER", tmp_path / "robots")
     outside = tmp_path / "elsewhere" / "model.json"
     outside.parent.mkdir(parents=True)
     outside.write_text('{"parts": []}', encoding="utf-8")
 
-    try:
-        model_tools.render_model.invoke({"model_path": str(outside)})
-    except ValueError as error:
-        assert "generated/robots" in str(error)
-    else:
-        raise AssertionError("Expected a ValueError for a path outside ROBOT_FOLDER.")
+    result = model_tools.render_model.invoke({"model_path": str(outside)})
+
+    assert result["success"] is False
+    assert "generated/robots" in result["rendering_errors"][0]
 
 
 def test_model_name_is_cleaned() -> None:

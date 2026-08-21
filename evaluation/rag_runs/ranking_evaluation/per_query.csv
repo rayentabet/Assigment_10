@@ -1,0 +1,51 @@
+id,query,pre_precision_at_5,pre_recall_at_5,pre_mrr,pre_ndcg_at_5,post_precision_at_5,post_recall_at_5,post_mrr,post_ndcg_at_5
+FN-JOY-02,"Using the joystick circuit and code, which pins read X, Y, and the push button, and what logic level indicates a press?",0.4,1.0,0.5,0.38356636737133565,0.4,1.0,1.0,0.48522855511632257
+KS-P16-02,"Using the wiring diagram, how should the obstacle-avoidance sensor be wired, and what happens when it detects a foam block?",1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+ARD-02,"How much Flash, SRAM, and EEPROM does the UNO R3's ATmega328P have?",0.2,1.0,1.0,0.6131471927654584,0.2,1.0,1.0,0.6131471927654584
+KS-P37-01,"What kinds of loads can the relay module control, and what is its maximum switching voltage?",1.0,1.0,1.0,1.0,0.8,1.0,1.0,0.8539316501572937
+CROSS-I2C-SENSORS,How do the Keyestudio MMA8452Q and Freenove MPU6050 wiring diagrams map to the official UNO R3 I2C pins?,0.8,0.6666666666666666,1.0,0.830419897363192,1.0,0.6666666666666666,1.0,1.0
+FN-MOTOR-01,"What types of motors can the L293D drive, and what do the Enable1 and Enable2 pins do?",1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+KS-P11-01,"What are the PIR sensor's detection distance, detection angle, and high-level output delay?",0.2,1.0,1.0,0.3391602052736161,0.2,1.0,1.0,0.3391602052736161
+FN-JOY-01,What three user inputs does the joystick module provide?,0.4,1.0,0.3333333333333333,0.3156484524795145,0.4,1.0,0.5,0.38356636737133565
+ARD-15,"Using the UNO R3 full pinout diagram, which pins are used for the default UART serial connection?",0.2,1.0,0.2,0.23719771276929622,0.2,1.0,0.5,0.38685280723454163
+KS-P31-01,What sensing functions are integrated in the APDS-9930 attitude sensor module?,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+FN-SERVO-01,"Using the servo timing table, what 50 Hz high-pulse widths correspond to 0 degrees, 90 degrees, and 180 degrees?",0.6,1.0,1.0,0.6992148198508501,0.8,1.0,1.0,0.830419897363192
+KS-P30-02,"Using the wiring diagram, which UNO-style pins are used for the MMA8452Q I2C connection?",0.8,1.0,1.0,0.8687949224876582,0.8,1.0,1.0,0.8539316501572937
+ARD-10,"Using the UNO R3 connector pinout table and diagram, which analog pins are the I2C data and clock lines?",0.2,1.0,0.3333333333333333,0.23463936301137822,0.4,1.0,0.3333333333333333,0.41618115554873086
+KS-P24-01,What temperature and humidity ranges and errors are specified for the DHT11?,0.6,1.0,1.0,0.6164336326286644,0.8,1.0,1.0,0.830419897363192
+CROSS-HCSR04-LOGIC,Compare the HC-SR04 measurement logic in the Keyestudio and Freenove guides: what trigger pulse and distance equation do they use?,0.4,0.5,0.3333333333333333,0.3156484524795145,0.6,0.5,0.5,0.4912596920895758
+FN-SERVO-02,"Using the servo wiring diagram, how should the three servo leads be connected?",1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+KS-P26-01,Why does an infrared transmitter normally require line of sight?,0.8,1.0,1.0,0.8539316501572937,0.8,1.0,1.0,0.8687949224876582
+FN-STEP-02,"Using the stepper-motor wiring diagram, which board pins connect to the ULN2003 driver?",1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+ARD-18,What is the maximum current per UNO R3 I/O pin?,0.2,1.0,0.5,0.38685280723454163,0.2,1.0,0.3333333333333333,0.3065735963827292
+KS-P19-01,How does the rotary encoder differ from a potentiometer in terms of rotation and counting?,0.4,1.0,1.0,0.4703652827859579,0.2,1.0,1.0,0.3391602052736161
+FN-MPU-02,"Using the MPU6050 wiring diagram, which UNO-style pins carry SDA and SCL?",0.8,1.0,0.5,0.6608397947263839,0.6,1.0,1.0,0.7227265726449519
+KS-P17-02,"How should the photocell sensor be connected, and what happens to its reading when it is covered?",1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+ARD-04,How many digital I/O pins and analog inputs does the UNO R3 have?,0.2,1.0,0.3333333333333333,0.3065735963827292,0.2,1.0,0.5,0.38685280723454163
+KS-P20-01,Which gases or vapors can the MQ-2 module detect according to the guide?,0.4,1.0,0.25,0.27727342735504823,0.6,1.0,1.0,0.6992148198508501
+CROSS-DHT-PINS,"The Keyestudio DHT11 example uses D4 while the Freenove example uses D10. Are both valid UNO R3 connections, and what must match in the code?",0.6,0.3333333333333333,1.0,0.7227265726449519,0.8,0.3333333333333333,1.0,0.8687949224876582
+FN-US-01,"Using the HC-SR04 wiring diagram and operating description, how is it connected and how is distance calculated?",0.8,1.0,1.0,0.7860137352654724,0.6,1.0,1.0,0.6843515475204855
+KS-P34-01,"Using the timing diagram, what trigger sequence does the HC-SR04 use before measuring an echo?",0.6,1.0,1.0,0.6164336326286644,0.6,1.0,1.0,0.6992148198508501
+FN-LOCK-01,"Using the combination-lock diagram, which pins connect the keypad, servo, and buzzer?",1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+ARD-16,"Using the UNO R3 full pinout diagram, which digital pins are marked as PWM-capable?",0.2,1.0,1.0,1.0,0.2,1.0,1.0,1.0
+KS-P14-01,What kinds of lines can the line-tracking sensor detect?,0.8,1.0,1.0,0.8687949224876582,1.0,1.0,1.0,1.0
+FN-STEP-01,Why does the supplied stepper motor require 2048 steps for one full output-shaft revolution?,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+KS-P06-01,Can the capacitive touch sensor detect a touch through cloth or paper?,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+ARD-14,What is the purpose of the AREF pin?,0.4,1.0,1.0,0.7653606369886217,0.2,1.0,0.2,0.18154179253735267
+KS-P12-01,What are the reed switch module's voltage range and maximum detection distance?,0.6,1.0,0.5,0.5296347172140421,0.8,1.0,1.0,0.7860137352654724
+CROSS-MOTOR-PWM,"In the Freenove L293D project, which pin is explicitly used for motor-speed PWM, and what does the official UNO pinout show about D9, D10, and D11?",0.0,0.0,0.16666666666666666,0.0,0.2,0.5,0.3333333333333333,0.3065735963827292
+FN-MOTOR-02,"Using the L293D circuit diagram, which control-board pins read the potentiometer and control motor direction and speed?",1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+KS-P23-01,What measurement range and sensitivity does the LM35 temperature sensor have?,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+FN-MOTOR-03,How does the potentiometer position affect the DC motor in the L293D project?,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+ARD-11,Which signal names are used for the UNO R3 SPI interface?,0.2,1.0,0.2,0.23719771276929622,0.2,1.0,0.3333333333333333,0.3065735963827292
+KS-P35-01,What types of inputs does the joystick module provide?,0.4,1.0,1.0,0.5531464700081437,0.4,1.0,1.0,0.48522855511632257
+FN-LCD-01,"Using the I2C LCD1602 diagram and description, how is it connected and how much text can it display?",0.6,1.0,1.0,0.6843515475204855,0.8,1.0,1.0,0.8539316501572937
+KS-P15-01,What wavelength range is the flame sensor designed to detect?,0.8,1.0,1.0,0.8687949224876582,0.8,1.0,1.0,0.8539316501572937
+KS-P36-01,How does the DS3231 keep time when the main power is disconnected?,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+FN-IR-01,"How do remote buttons 0, 1, 2, and 3 control the LED brightness in the infrared-remote project?",0.6,1.0,1.0,0.6992148198508501,1.0,1.0,1.0,1.0
+KS-P29-01,What wavelength range does the GUVA-S12SD ultraviolet sensor detect?,0.6,1.0,1.0,0.7227265726449519,0.8,1.0,1.0,0.8687949224876582
+FN-PIR-01,"What is the difference between the HC-SR501 L and H trigger modes, and how is its output delay adjusted?",0.8,1.0,1.0,0.8687949224876582,0.8,1.0,1.0,0.7860137352654724
+KS-P18-01,"What does the analog sound sensor measure, and how can its sensitivity be adjusted?",0.8,1.0,1.0,0.8687949224876582,0.8,1.0,1.0,0.830419897363192
+FN-LOCK-02,"What happens after the combination lock receives the correct password 1234, and what happens after a wrong password?",1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+FN-SERVO-03,"What motion does the Servo Sweep sketch produce, and what step and delay does it use?",0.8,1.0,1.0,0.8539316501572937,0.8,1.0,1.0,0.8539316501572937
+FN-MPU-01,What sensing functions and default I2C address does the MPU6050 module provide?,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0

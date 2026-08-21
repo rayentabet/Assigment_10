@@ -63,6 +63,18 @@ def test_normalize_product_uses_requested_quantity_price_break() -> None:
     assert card["quantity_available"] == 20
 
 
+def test_normalize_product_handles_equal_price_variations() -> None:
+    product = _product("SENSOR-1", 2.5, 20)
+    duplicate = dict(product["ProductVariations"][0])
+    duplicate["DigiKeyProductNumber"] = "SENSOR-1-ALT"
+    product["ProductVariations"].append(duplicate)
+
+    card = normalize_product(product, quantity=1)
+
+    assert card["digikey_part_number"] == "SENSOR-1"
+    assert card["unit_price"] == 2.5
+
+
 def test_rank_products_prefers_in_stock_then_lowest_total() -> None:
     cards = [
         normalize_product(_product("EXPENSIVE", 4.0, 20), 2),

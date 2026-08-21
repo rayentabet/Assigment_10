@@ -1,4 +1,3 @@
-import { artifactUrl } from "../../api/client";
 import type { useConversation } from "../../hooks/useConversation";
 import { ApprovalCard } from "./ApprovalCard";
 import "./ChatPanel.css";
@@ -14,12 +13,12 @@ export function ChatPanel({ conversation }: ChatPanelProps) {
   const {
     threadId,
     messages,
-    imageUrls,
     pendingApproval,
     pendingPurchaseProposal,
     paymentCredential,
     isSending,
     error,
+    currentNode,
     isLoadingHistory,
     historyError,
     send,
@@ -36,14 +35,6 @@ export function ChatPanel({ conversation }: ChatPanelProps) {
         {historyError && <p className="error-text">{historyError}</p>}
         <MessageList messages={messages} />
 
-        {imageUrls.length > 0 && (
-          <div className="image-gallery">
-            {imageUrls.map((url) => (
-              <img key={url} src={artifactUrl(url)} alt="Agent-generated artifact" />
-            ))}
-          </div>
-        )}
-
         {pendingApproval && (
           <ApprovalCard approval={pendingApproval} isBusy={isSending} onDecide={resume} />
         )}
@@ -57,7 +48,11 @@ export function ChatPanel({ conversation }: ChatPanelProps) {
           />
         )}
 
-        {isSending && !awaitingDecision && <p className="muted">The agent is working…</p>}
+        {isSending && !awaitingDecision && (
+          <p className="muted">
+            {currentNode ? `Running ${currentNode.replace(/_/g, " ")}…` : "The agent is working…"}
+          </p>
+        )}
         {error && <p className="error-text">{error}</p>}
       </div>
 

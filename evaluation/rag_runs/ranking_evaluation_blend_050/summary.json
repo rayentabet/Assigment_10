@@ -1,0 +1,27 @@
+{
+  "dataset": "arduino_rag_gold_dataset_final.jsonl",
+  "questions": 50,
+  "k": 5,
+  "metrics": {
+    "precision_at_5": {
+      "pre_reranker": 0.6560000000000001,
+      "post_reranker": 0.6759999999999999,
+      "absolute_change": 0.019999999999999796
+    },
+    "recall_at_5": {
+      "pre_reranker": 0.9033333333333333,
+      "post_reranker": 0.9033333333333333,
+      "absolute_change": 0.0
+    },
+    "mrr": {
+      "pre_reranker": 0.8246753246753247,
+      "post_reranker": 0.8805,
+      "absolute_change": 0.05582467532467528
+    },
+    "ndcg_at_5": {
+      "pre_reranker": 0.720372095656026,
+      "post_reranker": 0.7493005603193029,
+      "absolute_change": 0.02892846466327692
+    }
+  }
+}

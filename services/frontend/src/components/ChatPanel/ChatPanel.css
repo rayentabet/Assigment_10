@@ -19,43 +19,101 @@
 }
 
 .empty-state {
-  margin-top: 2rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
   text-align: center;
+  color: var(--muted-fg);
+}
+
+.empty-state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-bottom: 0.2rem;
+}
+
+.empty-state p {
+  max-width: 32ch;
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 .message-list {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 1.1rem;
 }
 
-.message {
-  max-width: 70ch;
-  padding: 0.6rem 0.9rem;
-  border-radius: 10px;
+.message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  max-width: 88ch;
+}
+
+.message-row-user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.message-avatar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: var(--surface-alt);
+  color: var(--muted-fg);
   border: 1px solid var(--border);
 }
 
+.message-row-user .message-avatar {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: var(--accent-fg);
+  border-color: transparent;
+}
+
+.message {
+  min-width: 0;
+  padding: 0.65rem 0.95rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
 .message-user {
-  align-self: flex-end;
   background: var(--accent);
   color: var(--accent-fg);
   border-color: var(--accent);
+  border-top-right-radius: 4px;
 }
 
 .message-assistant {
-  align-self: flex-start;
-  background: var(--surface-alt);
-  max-width: 85ch;
+  background: var(--surface);
+  border-top-left-radius: 4px;
 }
 
 .message-role {
   display: block;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.7;
-  margin-bottom: 0.2rem;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  opacity: 0.65;
+  margin-bottom: 0.25rem;
 }
 
 .message-content {
@@ -116,24 +174,28 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  margin-top: 0.65rem;
 }
 
 .image-gallery img {
-  max-width: 320px;
-  max-height: 320px;
+  max-width: 280px;
+  max-height: 280px;
   border-radius: 8px;
   border: 1px solid var(--border);
 }
 
 .card {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1rem;
-  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+  padding: 1.1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
 }
 
 .card-warning {
   margin: 0 0 0.75rem;
+  padding-left: 0.65rem;
+  border-left: 3px solid var(--warning);
   font-weight: 600;
 }
 
@@ -171,13 +233,25 @@
 
 .message-input-wrapper {
   flex: 0 0 auto;
-  padding: 1rem 1.5rem;
+  padding: 1rem 1.5rem 1.25rem;
   border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .message-input {
   display: flex;
-  gap: 0.6rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.message-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .mic-button {
@@ -185,19 +259,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.3rem;
+  height: 2.3rem;
   padding: 0;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: 50%;
-  background: var(--surface);
+  background: transparent;
   color: var(--muted-fg);
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .mic-button:hover:not(:disabled) {
-  color: var(--fg);
-  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface-hover);
 }
 
 .mic-button:disabled {
@@ -229,12 +304,16 @@
 
 .message-input input {
   flex: 1;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  min-width: 0;
+  padding: 0.5rem 0.4rem;
+  border: none;
+  background: transparent;
   color: var(--fg);
   font-size: 0.9rem;
+}
+
+.message-input input:focus {
+  outline: none;
 }
 
 .message-input input:disabled {
@@ -244,6 +323,7 @@
 .message-input .sidebar-button {
   width: auto;
   margin-top: 0;
+  border-radius: 999px;
   padding-left: 1.2rem;
   padding-right: 1.2rem;
 }
@@ -269,6 +349,13 @@
   border-radius: 0.45rem;
   background: var(--surface);
   color: var(--fg);
+}
+
+.hosted-payment-field {
+  min-height: 38px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: 6px;
+  background: white;
 }
 
 .payment-row {

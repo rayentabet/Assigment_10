@@ -30,6 +30,16 @@ The `expected` object may contain:
 - `cross_checks`: cross-artifact invariants such as generated code reusing the
   pins stored in `project.wiring`.
 - `recovery`: recovery properties for simulated failure cases.
+- `task_completion`: `{"goal": "..."}`, a plain-language description of what a
+  correct final answer must accomplish. Graded by an LLM judge
+  (`evaluation/judge.py`), not string matching, since an answer can be
+  factually correct and still fail the task (e.g. by refusing to give the
+  total the user asked for). Optional per case; cases without it report
+  `task_completion_correct: null` and are not judged.
+- `min_steps`: integer, the minimum number of specialist iterations
+  (`iteration_count`) needed to complete the case — normally one per entry in
+  `routes`. Used to compute `step_efficiency_ratio = iteration_count /
+  min_steps`, reported as a metric (not a pass/fail gate). Optional per case.
 
 Argument matcher objects such as `{"ends_with": ".ino"}` and
 `{"non_empty": true}` describe predicates rather than literal values.

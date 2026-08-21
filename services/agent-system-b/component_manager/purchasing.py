@@ -303,8 +303,11 @@ async def place_order(
     except OAuthError as error:
         raise PurchaseError(str(error)) from error
     mandates = json.loads(proposal["mandate_json"])
-    if not payment_credential_id.startswith("cp_test_"):
-        raise PurchaseError("A tokenized sandbox payment credential is required.")
+    if not (
+        payment_credential_id.startswith("cp_test_")
+        or payment_credential_id == "lithic_sandbox_authorized"
+    ):
+        raise PurchaseError("An approved sandbox payment reference is required.")
     mandates["payment_mandate_sdjwt"] = _payment_mandate(
         proposal, mandates, payment_credential_id
     )

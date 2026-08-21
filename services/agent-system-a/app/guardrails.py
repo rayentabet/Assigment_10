@@ -18,7 +18,7 @@ SENSITIVE_PATTERNS = {
     "CREDIT_CARD": r"\b(?:\d[ -]*?){13,19}\b",
     "US_SSN": r"\b\d{3}-\d{2}-\d{4}\b",
     "IP_ADDRESS": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
-    "PHONE_NUMBER": r"(?<!\w)(?:\+?\d[\d .()-]{7,}\d)(?!\w)",
+    "PHONE_NUMBER": r"(?<!\w)(?:\+?\d{1,3}[-.\s])?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}(?!\w)",
 }
 
 

@@ -24,7 +24,7 @@ from app.graph import (
 )
 from app.helpers import extract_images, extract_result, merge_results, to_text
 from app.payment_vault import clear as clear_credentials
-from app.payment_vault import tokenize
+from app.payment_vault import provider, public
 
 
 def test_graph_compiles() -> None:
@@ -321,23 +321,24 @@ def _pending_proposal() -> dict:
         "component_id": "hc-sr04",
         "component_name": "HC-SR04 Ultrasonic Distance Sensor",
         "quantity": 2,
-        "supplier_name": "RoboCrate Supply",
+        "supplier_name": "DigiKey Sandbox",
         "unit_price": 2.55,
         "currency": "USD",
         "fees": 2.50,
         "total": 7.60,
         "delivery_estimate_days": 3,
-        "expires_at": "2026-01-01 00:15:00",
+        "expires_at": "2099-01-01 00:15:00",
         "approval_token": "deadbeef",
     }
 
 
-def test_purchase_approval_rejection_clears_proposal_and_cancels(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_purchase_approval_rejection_clears_proposal_and_cancels(monkeypatch) -> None:
     monkeypatch.setattr("app.graph.interrupt", lambda _payload: {"approved": False})
     state = new_state("Buy 2 ultrasonic sensors", thread_id="thread-1")
     state["pending_purchase_proposal"] = _pending_proposal()
 
-    update = approve_purchase(state)
+    update = await approve_purchase(state)
 
     assert update["pending_purchase_proposal"] is None
     assert update["next_agent"] == "FINISH"
@@ -345,66 +346,86 @@ def test_purchase_approval_rejection_clears_proposal_and_cancels(monkeypatch) ->
     assert "cancelled" in update["final_answer"].lower()
 
 
-def test_purchase_approval_acceptance_routes_back_with_idempotency_key(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_purchase_approval_acceptance_routes_back_with_idempotency_key(monkeypatch) -> None:
     proposal = _pending_proposal()
-    credential = tokenize("4242 4242 4242 4242", "12/30", "123")
+    credential = public(provider.create_payment_method())
     monkeypatch.setattr(
         "app.graph.interrupt",
         lambda _payload: {
             "approved": True,
-            "payment_credential_id": credential["credential_id"],
+            "payment_method_id": credential["payment_method_id"],
         },
     )
     state = new_state("Buy 2 ultrasonic sensors", thread_id="thread-1")
     state["pending_purchase_proposal"] = proposal
     state["completed_tasks"] = ["Create a purchase proposal"]
 
-    update = approve_purchase(state)
+    captured = {}
+    async def fake_execute(**kwargs):
+        captured.update(kwargs)
+        assert kwargs["payment_method_id"] == credential["payment_method_id"]
+        return {"order_id": "DKS-1", "status": "submitted",
+                "payment_method_id": credential["payment_method_id"],
+                "payment_display": credential["display"]}
+    monkeypatch.setattr("app.payment_service.payment_service.execute", fake_execute)
+    update = await approve_purchase(state)
 
-    assert update["next_agent"] == "component_manager"
-    task = update["completed_tasks"][-1]
-    assert proposal["proposal_id"] in task
-    assert proposal["approval_token"] in task
-    assert credential["credential_id"] in task
-    assert "4242 4242 4242 4242" not in task
+    assert update["next_agent"] == "FINISH"
+    assert credential["payment_method_id"] in update["final_answer"]
+    assert update["trusted_payment_result"] is True
+    assert credential["display"] in update["final_answer"]
+    assert proposal["approval_token"] not in update["final_answer"]
+    llm_visible_state = repr(update)
+    assert "4111111111114242" not in llm_visible_state
+    assert "987" not in llm_visible_state
+    assert "lithic-card-token" not in llm_visible_state
+    assert "LITHIC_API_KEY" not in llm_visible_state
     clear_credentials()
 
     expected_key = hashlib.sha256(f"thread-1:{proposal['proposal_id']}".encode()).hexdigest()
-    assert expected_key in task
+    assert captured["mandate"].nonce == expected_key
 
 
-def test_purchase_approval_idempotency_key_is_deterministic_per_thread(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_purchase_approval_idempotency_key_is_deterministic_per_thread(monkeypatch) -> None:
     proposal = _pending_proposal()
-    credential = tokenize("4242 4242 4242 4242", "12/30", "123")
+    credential = public(provider.create_payment_method())
     monkeypatch.setattr(
         "app.graph.interrupt",
         lambda _payload: {
             "approved": True,
-            "payment_credential_id": credential["credential_id"],
+            "payment_method_id": credential["payment_method_id"],
         },
     )
 
     keys = []
+    async def fake_execute(**kwargs):
+        keys.append(kwargs["mandate"].nonce)
+        return {"order_id": "DKS-1", "status": "submitted",
+                "payment_method_id": credential["payment_method_id"],
+                "payment_display": credential["display"]}
+    monkeypatch.setattr("app.payment_service.payment_service.execute", fake_execute)
     for _ in range(2):
         state = new_state("Buy 2 ultrasonic sensors", thread_id="thread-1")
         state["pending_purchase_proposal"] = proposal
         state["completed_tasks"] = ["Create a purchase proposal"]
-        update = approve_purchase(state)
-        keys.append(update["completed_tasks"][-1])
+        await approve_purchase(state)
 
     assert keys[0] == keys[1]
     clear_credentials()
 
 
-def test_purchase_approval_requires_payment_credential(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_purchase_approval_requires_payment_credential(monkeypatch) -> None:
     monkeypatch.setattr("app.graph.interrupt", lambda _payload: {"approved": True})
     state = new_state("Buy 2 ultrasonic sensors", thread_id="thread-1")
     state["pending_purchase_proposal"] = _pending_proposal()
 
-    update = approve_purchase(state)
+    update = await approve_purchase(state)
 
     assert update["next_agent"] == "FINISH"
-    assert "no sandbox payment credential" in update["final_answer"]
+    assert "no payment method" in update["final_answer"]
 
 
 def _mock_contact(monkeypatch, result: dict) -> None:

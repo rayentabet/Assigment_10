@@ -3,7 +3,10 @@
 # Two stages so the runtime image carries only the built assets and nginx,
 # not node_modules or the toolchain.
 
-FROM node:20-alpine AS build
+# node:20-alpine's musl libc segfaults running `npm ci` on this Docker
+# Desktop/Apple Silicon setup (reproduced with a bare, unmodified image);
+# the Debian-based image doesn't have that problem.
+FROM node:20-bookworm-slim AS build
 
 WORKDIR /app
 

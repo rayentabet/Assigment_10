@@ -4,9 +4,8 @@ Two evaluation families, one dashboard:
 
 - **Agent Evaluation (System A)** — saved runs from `run_evaluation.py`:
   routing, tool selection/arguments/order, approvals, guardrails.
-- **RAG Retrieval Evaluation** — saved RAGAS runs from the sibling
-  Assignment_8 project (read-only: this tab only reads its output files,
-  it doesn't run RAGAS itself).
+- **RAG Retrieval Evaluation** — imported saved RAGAS and ranking runs from the
+  earlier RAG project (read-only: this tab only reads their output files).
 """
 
 import argparse
@@ -23,17 +22,28 @@ HERE = Path(__file__).parent
 PROJECT_DIRECTORY = HERE.parent
 RUNS_DIRECTORY = HERE / "runs"
 RUNNER = HERE / "run_evaluation.py"
+# `app`/`agents`/`tools`/`component_manager`/`mcp_server` live under
+# services/*, not directly under the repo root, so the root alone on
+# PYTHONPATH isn't enough for the "Run evaluation" subprocess below (its
+# own import of `app.config` above works via sys.path.insert, which is a
+# separate mechanism from the child subprocess's environment).
+RUNNER_PYTHONPATH = os.pathsep.join(
+    [str(PROJECT_DIRECTORY)]
+    + [
+        str(PROJECT_DIRECTORY / part)
+        for part in ("services/agent-system-a", "services/agent-system-b", "services/mcp-server")
+    ]
+)
 
 if str(PROJECT_DIRECTORY) not in sys.path:
     # `streamlit run evaluation/dashboard.py` doesn't put the repo root on
     # sys.path the way `PYTHONPATH=. python -m ...` does.
     sys.path.insert(0, str(PROJECT_DIRECTORY))
 
-from app.config import settings  # noqa: E402
 from evaluation.comparators import aggregate_summary  # noqa: E402
 from evaluation.run_evaluation import DATASET, load_cases, select_cases  # noqa: E402
 
-RAG_RUNS_DIRECTORY = Path(settings.rag_project_path) / "runs"
+RAG_RUNS_DIRECTORY = HERE / "rag_runs"
 
 METRIC_LABELS = {
     "case_pass": "Case pass rate",
@@ -43,6 +53,7 @@ METRIC_LABELS = {
     "tool_order_correct": "Tool-order accuracy",
     "guardrail_correct": "Guardrail accuracy",
     "approval_correct": "Approval correctness",
+    "task_completion_correct": "Task completion (LLM judge)",
 }
 
 ASSERTION_LABELS = {
@@ -56,6 +67,7 @@ ASSERTION_LABELS = {
     "project_correct": "Project state",
     "cross_check_correct": "Cross-check",
     "recovery_correct": "Recovery",
+    "task_completion_correct": "Task completion",
 }
 
 RAG_METRIC_NAMES = ["faithfulness", "answer_relevancy", "context_precision", "context_recall"]
@@ -154,7 +166,7 @@ def render_overview(cases: list[dict]) -> None:
         "guardrail_correct",
     ]
     columns = st.columns(len(metric_keys))
-    for column, key in zip(columns, metric_keys):
+    for column, key in zip(columns, metric_keys, strict=True):
         entry = summary["metrics"][key]
         rate = entry["rate"]
         column.metric(
@@ -174,9 +186,8 @@ def render_overview(cases: list[dict]) -> None:
         st.caption("Expected route chain (rows) vs. actual route chain (columns)")
         confusion_rows = summary["route_confusion"]
         if confusion_rows:
-            matrix = (
-                pd.DataFrame(confusion_rows)
-                .pivot_table(index="expected", columns="actual", values="count", fill_value=0)
+            matrix = pd.DataFrame(confusion_rows).pivot_table(
+                index="expected", columns="actual", values="count", fill_value=0
             )
             st.dataframe(matrix.style.background_gradient(cmap="Blues", axis=None), width="stretch")
         else:
@@ -206,13 +217,64 @@ def render_overview(cases: list[dict]) -> None:
                     "cases": len(subset),
                     "case_pass_rate": specialist_summary["metrics"]["case_pass"]["rate"],
                     "route_accuracy": specialist_summary["metrics"]["route_correct"]["rate"],
-                    "tool_selection_accuracy": specialist_summary["metrics"]["tool_selection_correct"]["rate"],
-                    "tool_argument_accuracy": specialist_summary["metrics"]["tool_arguments_correct"]["rate"],
+                    "tool_selection_accuracy": specialist_summary["metrics"][
+                        "tool_selection_correct"
+                    ]["rate"],
+                    "tool_argument_accuracy": specialist_summary["metrics"][
+                        "tool_arguments_correct"
+                    ]["rate"],
                 }
             )
         by_specialist = pd.DataFrame(rows)
         st.dataframe(by_specialist, width="stretch", hide_index=True)
         st.bar_chart(by_specialist.set_index("specialist")["case_pass_rate"])
+
+    st.subheader("Efficiency & cost")
+    task_completion = summary["metrics"].get("task_completion_correct", {})
+    efficiency_columns = st.columns(4)
+    efficiency_columns[0].metric(
+        "Task completion rate",
+        f"{task_completion['rate']:.0%}" if task_completion.get("rate") is not None else "N/A",
+        help=f"{task_completion.get('passed', 0)}/{task_completion.get('total', 0)} judged cases"
+        if task_completion.get("total")
+        else "No cases declare expected.task_completion",
+    )
+    mean_ratio = summary.get("mean_step_efficiency_ratio")
+    efficiency_columns[1].metric(
+        "Mean step efficiency",
+        f"{mean_ratio:.2f}x" if mean_ratio is not None else "N/A",
+        help="Actual steps / expected.min_steps, averaged over cases that declare it",
+    )
+    mean_cost = summary.get("mean_cost_usd")
+    efficiency_columns[2].metric(
+        "Mean cost / task",
+        f"${mean_cost:.4f}" if mean_cost is not None else "N/A",
+        help="Only counts cases where every model used has a MODEL_PRICING entry",
+    )
+    mean_tokens = summary.get("mean_total_tokens")
+    efficiency_columns[3].metric(
+        "Mean tokens / task",
+        f"{mean_tokens:,.0f}" if mean_tokens is not None else "N/A",
+    )
+    if summary.get("unpriced_models"):
+        st.caption(
+            "No pricing for: "
+            + ", ".join(summary["unpriced_models"])
+            + " — cost_usd is N/A for cases using them. Fill in MODEL_PRICING in "
+            "evaluation/cost_tracking.py."
+        )
+
+    tokens_by_node: dict[str, int] = {}
+    for case in cases:
+        for node, node_tokens in (case.get("tokens_by_node") or {}).items():
+            tokens_by_node[node] = (
+                tokens_by_node.get(node, 0)
+                + node_tokens.get("input_tokens", 0)
+                + node_tokens.get("output_tokens", 0)
+            )
+    if tokens_by_node:
+        st.caption("Tokens by graph node")
+        st.bar_chart(pd.Series(tokens_by_node, name="tokens"))
 
 
 def render_cases_table(cases: list[dict]) -> None:
@@ -230,7 +292,9 @@ def render_cases_table(cases: list[dict]) -> None:
 
     visible = df[df["category"].isin(category_filter)]
     if tag_filter:
-        visible = visible[visible["tags"].apply(lambda tags: any(tag in tags for tag in tag_filter))]
+        visible = visible[
+            visible["tags"].apply(lambda tags: any(tag in tags for tag in tag_filter))
+        ]
     if status_filter == "Passed":
         visible = visible[visible["case_pass"]]
     elif status_filter == "Failed":
@@ -261,7 +325,12 @@ def render_cases_table(cases: list[dict]) -> None:
         "expected_routes",
         "actual_routes",
         "duration_ms",
+        "task_completion_correct",
+        "step_efficiency_ratio",
+        "total_tokens",
+        "cost_usd",
     ]
+    display_columns = [column for column in display_columns if column in visible.columns]
     st.dataframe(visible[display_columns], width="stretch", hide_index=True)
 
 
@@ -341,6 +410,28 @@ def render_case_detail(cases: list[dict]) -> None:
         f"{verdict_icon(case.get('guardrail_correct'))}"
     )
 
+    st.subheader("Task completion, efficiency & cost")
+    task_completion = expected.get("task_completion")
+    if task_completion:
+        st.markdown(f"**Goal:** {task_completion.get('goal', '')}")
+        st.markdown(f"Task completion: {verdict_icon(case.get('task_completion_correct'))}")
+        if case.get("task_completion_reasoning"):
+            st.caption(f"Judge reasoning: {case['task_completion_reasoning']}")
+    else:
+        st.caption("No expected.task_completion goal declared for this case.")
+    min_steps = expected.get("min_steps")
+    if min_steps:
+        ratio = case.get("step_efficiency_ratio")
+        st.markdown(
+            f"Steps: {case.get('iteration_count', 0)} actual / {min_steps} expected"
+            + (f" → {ratio:.2f}x" if ratio is not None else "")
+        )
+    cost_usd = case.get("cost_usd")
+    st.markdown(
+        f"Tokens: {case.get('total_tokens', 0):,} · "
+        f"Cost: {f'${cost_usd:.4f}' if cost_usd is not None else 'N/A'}"
+    )
+
     st.subheader("Final verdict")
     if case.get("case_pass"):
         st.success("PASS")
@@ -379,9 +470,15 @@ def render_failures(cases: list[dict]) -> None:
         if case.get("error"):
             counts["Runtime error"] += 1
 
-    st.markdown("**Which assertion failed, across all failing cases** (one case may fail more than one)")
+    st.markdown(
+        "**Which assertion failed, across all failing cases** (one case may fail more than one)"
+    )
     counts_df = pd.DataFrame(
-        [{"assertion": label, "failing_cases": count} for label, count in counts.items() if count > 0]
+        [
+            {"assertion": label, "failing_cases": count}
+            for label, count in counts.items()
+            if count > 0
+        ]
     ).sort_values("failing_cases", ascending=False)
     if not counts_df.empty:
         st.bar_chart(counts_df.set_index("assertion")["failing_cases"])
@@ -402,11 +499,19 @@ def render_run_comparison(run_dirs: list[Path], default_dir: Path) -> None:
     left_col, right_col = st.columns(2)
     default_index_a = run_dirs.index(default_dir)
     dir_a = left_col.selectbox(
-        "Run A", run_dirs, index=default_index_a, format_func=lambda path: path.name, key="compare_a"
+        "Run A",
+        run_dirs,
+        index=default_index_a,
+        format_func=lambda path: path.name,
+        key="compare_a",
     )
     default_index_b = min(default_index_a + 1, len(run_dirs) - 1)
     dir_b = right_col.selectbox(
-        "Run B", run_dirs, index=default_index_b, format_func=lambda path: path.name, key="compare_b"
+        "Run B",
+        run_dirs,
+        index=default_index_b,
+        format_func=lambda path: path.name,
+        key="compare_b",
     )
 
     run_a = load_run(dir_a)
@@ -437,7 +542,11 @@ def render_run_comparison(run_dirs: list[Path], default_dir: Path) -> None:
     cases_b = {case["id"]: case for case in run_b["cases"]}
     common_ids = sorted(set(cases_a) & set(cases_b))
     changed = [
-        {"id": case_id, dir_a.name: cases_a[case_id]["case_pass"], dir_b.name: cases_b[case_id]["case_pass"]}
+        {
+            "id": case_id,
+            dir_a.name: cases_a[case_id]["case_pass"],
+            dir_b.name: cases_b[case_id]["case_pass"],
+        }
         for case_id in common_ids
         if cases_a[case_id]["case_pass"] != cases_b[case_id]["case_pass"]
     ]
@@ -455,7 +564,7 @@ def render_run_comparison(run_dirs: list[Path], default_dir: Path) -> None:
 
 
 # =============================================================================
-# RAG retrieval evaluation (reads Assignment_8's saved RAGAS runs directly)
+# RAG retrieval evaluation (reads imported saved RAGAS and ranking runs)
 # =============================================================================
 
 
@@ -479,7 +588,9 @@ def list_ranking_run_directories() -> list[Path]:
         (
             path
             for path in RAG_RUNS_DIRECTORY.glob("*")
-            if path.is_dir() and (path / "per_query.csv").exists() and (path / "summary.json").exists()
+            if path.is_dir()
+            and (path / "per_query.csv").exists()
+            and (path / "summary.json").exists()
         ),
         reverse=True,
     )
@@ -487,8 +598,8 @@ def list_ranking_run_directories() -> list[Path]:
 
 def render_rag_tab() -> None:
     st.caption(
-        f"Reads saved runs from `{RAG_RUNS_DIRECTORY}` — the sibling Assignment_8 "
-        "RAG evaluator's own output. This tab only displays those files; it doesn't "
+        f"Reads imported runs from `{RAG_RUNS_DIRECTORY}`. This tab only displays "
+        "those files; it doesn't "
         "run retrieval, reranking, or RAGAS scoring itself."
     )
     ragas_subtab, ranking_subtab = st.tabs(
@@ -504,12 +615,13 @@ def render_ragas_subtab() -> None:
     rag_runs = list_rag_run_directories()
     if not rag_runs:
         st.info(
-            "No RAGAS runs found. Use Assignment_8's own `dashboard.py` to generate "
-            "predictions and RAGAS scores under `runs/<name>/`."
+            "No imported RAGAS runs were found under `evaluation/rag_runs/`."
         )
         return
 
-    selected_dir = st.selectbox("RAGAS run", rag_runs, format_func=lambda path: path.name, key="ragas_run_select")
+    selected_dir = st.selectbox(
+        "RAGAS run", rag_runs, format_func=lambda path: path.name, key="ragas_run_select"
+    )
     predictions_path = selected_dir / "predictions.jsonl"
     metrics_path = selected_dir / "metrics.csv"
     predictions = pd.DataFrame(
@@ -525,14 +637,17 @@ def render_ragas_subtab() -> None:
                 metrics[name] = pd.NA
         if "id" not in metrics.columns and len(metrics) == len(predictions):
             # metrics.csv is a positional RAGAS export with no id column;
-            # Assignment_8's own dashboard makes the same row-order assumption.
+            # Historical exports are positional and contain no explicit id.
             metrics = metrics.copy()
             metrics["id"] = predictions["id"].to_numpy()
 
         columns = st.columns(len(RAG_METRIC_NAMES))
-        for column, name in zip(columns, RAG_METRIC_NAMES):
+        for column, name in zip(columns, RAG_METRIC_NAMES, strict=True):
             values = pd.to_numeric(metrics[name], errors="coerce")
-            column.metric(name.replace("_", " ").title(), f"{values.mean():.3f}" if values.notna().any() else "N/A")
+            column.metric(
+                name.replace("_", " ").title(),
+                f"{values.mean():.3f}" if values.notna().any() else "N/A",
+            )
             column.caption(f"{values.notna().sum()}/{len(values)} scored")
 
         st.subheader("Scores by question")
@@ -579,10 +694,8 @@ def render_ranking_subtab() -> None:
     ranking_runs = list_ranking_run_directories()
     if not ranking_runs:
         st.info(
-            "No retrieval ranking runs found. Generate one from Assignment_8: "
-            "`python -m evaluation.run_ranking_evaluation --k 5` — it compares "
-            "pre-reranker (RRF) and post-reranker (cross-encoder) precision@k, "
-            "recall@k, MRR, and NDCG@k."
+            "No imported retrieval ranking runs were found under "
+            "`evaluation/rag_runs/`."
         )
         return
 
@@ -598,7 +711,7 @@ def render_ranking_subtab() -> None:
     st.subheader("Pre-reranker (RRF) vs. post-reranker (cross-encoder)")
     metric_names = list(summary.get("metrics", {}))
     columns = st.columns(len(metric_names)) if metric_names else []
-    for column, name in zip(columns, metric_names):
+    for column, name in zip(columns, metric_names, strict=True):
         entry = summary["metrics"][name]
         label, suffix = _ranking_metric_key(name)
         pre, post, change = entry["pre_reranker"], entry["post_reranker"], entry["absolute_change"]
@@ -616,16 +729,21 @@ def render_ranking_subtab() -> None:
             json.loads(line) for line in rankings_path.read_text().splitlines() if line.strip()
         ]
         rankings_by_id = {entry["id"]: entry for entry in rankings}
-        selected_ranking_id = st.selectbox("Question ID", list(rankings_by_id), key="ranking_question_select")
-        entry = rankings_by_id[selected_ranking_id]
-        st.write("**Question:**", entry.get("query", ""))
-        pre_col, post_col = st.columns(2)
-        with pre_col:
-            st.markdown("**Pre-reranker ranking (RRF)**")
-            st.json(entry.get("pre_rerank", []))
-        with post_col:
-            st.markdown("**Post-reranker ranking (cross-encoder)**")
-            st.json(entry.get("post_rerank", []))
+        if not rankings_by_id:
+            st.caption("rankings.jsonl has no per-question entries for this run.")
+        else:
+            selected_ranking_id = st.selectbox(
+                "Question ID", list(rankings_by_id), key="ranking_question_select"
+            )
+            entry = rankings_by_id[selected_ranking_id]
+            st.write("**Question:**", entry.get("query", ""))
+            pre_col, post_col = st.columns(2)
+            with pre_col:
+                st.markdown("**Pre-reranker ranking (RRF)**")
+                st.json(entry.get("pre_rerank", []))
+            with post_col:
+                st.markdown("**Post-reranker ranking (cross-encoder)**")
+                st.json(entry.get("post_rerank", []))
 
 
 # =============================================================================
@@ -648,17 +766,19 @@ with st.sidebar:
     all_tags = sorted({tag for case in dataset_cases for tag in case.get("tags", [])})
     all_case_ids = sorted(case["id"] for case in dataset_cases)
 
-    scope = st.radio(
-        "Which cases", ["All cases", "Filter by category / tag", "Specific case IDs"]
-    )
+    scope = st.radio("Which cases", ["All cases", "Filter by category / tag", "Specific case IDs"])
     category_selection: list[str] = []
     tag_selection: list[str] = []
     case_id_selection: list[str] = []
     if scope == "Filter by category / tag":
         category_selection = st.multiselect("Categories (empty = all)", all_categories)
         tag_selection = st.multiselect(
-            "Tags (empty = all)", all_tags,
-            help="A case must carry ALL selected tags to match — same AND semantics as the CLI's repeated --tag flag.",
+            "Tags (empty = all)",
+            all_tags,
+            help=(
+                "A case must carry ALL selected tags to match — same AND semantics "
+                "as the CLI's repeated --tag flag."
+            ),
         )
     elif scope == "Specific case IDs":
         case_id_selection = st.multiselect("Case IDs", all_case_ids)
@@ -696,7 +816,7 @@ with st.sidebar:
             process = subprocess.run(
                 args,
                 cwd=PROJECT_DIRECTORY,
-                env={**os.environ, "PYTHONPATH": str(PROJECT_DIRECTORY)},
+                env={**os.environ, "PYTHONPATH": RUNNER_PYTHONPATH},
                 capture_output=True,
                 text=True,
             )

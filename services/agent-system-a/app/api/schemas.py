@@ -32,7 +32,7 @@ class ApprovalDecision(BaseModel):
     """Human decision for a paused agent action."""
 
     approved: bool
-    payment_credential_id: str | None = Field(default=None, max_length=128)
+    payment_method_id: str | None = Field(default=None, max_length=128)
 
 
 class SandboxCardRequest(BaseModel):
@@ -42,15 +42,17 @@ class SandboxCardRequest(BaseModel):
     expiry: str = Field(min_length=4, max_length=7)
     cvv: str = Field(min_length=3, max_length=4)
 
-
 class PaymentCredential(BaseModel):
     """Non-sensitive tokenization result safe to display outside the vault."""
 
-    credential_id: str
+    payment_method_id: str
+    display: str
     brand: str
-    last4: str
-    expires_at: int
+    last4: str | None
     sandbox: bool
+
+class PaymentConfig(BaseModel):
+    provider: Literal["sandbox", "lithic"]
 
 
 class ApprovalRequest(BaseModel):
@@ -124,9 +126,12 @@ class ProductCard(BaseModel):
 class ToolTraceEntry(BaseModel):
     """One tool call or tool result from the turn that just completed.
 
-    A post-hoc substitute for live SSE tool-progress events (the proposal's
-    §8 describes a streamed activity feed; this app uses request/response
-    instead), so this only reflects the most recent turn, not full history.
+    Shape of `ChatResponse.tool_trace`, the terminal/unary view of a turn's
+    activity; only reflects the most recent turn, not full history. The
+    streaming endpoints (`POST /threads/{id}/messages/stream` and
+    `/resume/stream`) reuse this same dict shape inline in their `"node"`
+    frames, without a dedicated Pydantic model — SSE frames are hand-built
+    dicts for flexibility, matching System B's own `_sse_frames_for_event`.
     """
 
     agent: str

@@ -8,8 +8,12 @@ __pycache__/
 .mypy_cache/
 *.egg-info/
 .DS_Store
+.vscode/
 node_modules/
 dist/
+
+# Accidental local runtime directory; System B source lives under services/.
+/component_manager/
 
 # Agent System B signing/encryption keys
 services/agent-system-b/component_manager/data/.oauth_key
